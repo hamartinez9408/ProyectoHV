@@ -37,9 +37,9 @@ Cada capa atrapa lo que la anterior dejó pasar.
 │  Audita el artefacto ya escrito. Si alguien fuerza un commit..│
 └──────────────────────────────┬────────────────────────────────┘
                                ▼
-┌─ CAPA 4 · CI/CD GATES ──────────────────── DEFENSA FINAL ─────┐
-│  GitHub Actions: el pipeline bloquea el merge.                │
-│  ⚠️  PENDIENTE de implementar — ver "Estado real" abajo.      │
+┌─ CAPA 4 · CI/CD GATES ───────────────────── DEFENSA FINAL ────┐
+│  .github/workflows/guardrails.yml — 3 jobs, los 3 bloqueantes │
+│  Entorno limpio: no depende de que nadie tenga hooks activos. │
 └───────────────────────────────────────────────────────────────┘
 ```
 
@@ -50,11 +50,14 @@ Cada capa atrapa lo que la anterior dejó pasar.
 | 1 · Contexto | ✅ Operativa | `AGENTS.md`, `.agents/`, `docs/` |
 | 2 · Hooks | ✅ Operativa y probada | `.zcode/config.json` (ZCode) · `.agents/hooks.json` (Antigravity) |
 | 3 · Revisores | ✅ Operativa | `.agents/skills/hv-review-*`, `hv-guardrails` |
-| 4 · CI/CD | ⚠️ **Documentada, no implementada** | `.github/workflows/` |
+| 4 · CI/CD | ✅ **Implementada** — ver nota | `.github/workflows/guardrails.yml` · `pipelines/` |
 
-> **Decirlo importa.** Una barrera que crees tener y no tienes es peor que
-> saber que no la tienes. La capa 4 es lo único que impide que una violación
-> llegue a `main` por la vía de "funciona en mi máquina".
+> **Una precisión que importa:** el workflow **reporta**; lo que **bloquea** el
+> merge es la regla de protección de rama en *Settings → Branches*. Son dos
+> cosas distintas, y la segunda no vive en el repositorio.
+>
+> Checklist de activación (repo remoto, secrets, protección de rama y prueba de
+> que bloquea de verdad): [`pipelines/README.md`](pipelines/README.md).
 
 ---
 

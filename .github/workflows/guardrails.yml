@@ -1,0 +1,92 @@
+# Capa 4 de la Cuádruple Barrera — defensa final antes de `main`.
+#
+# QUÉ HACE: ejecuta los gates deterministas que ya existen en el repo, en un
+# entorno limpio y sin posibilidad de "funciona en mi máquina". Es la única
+# capa que no depende de que alguien tenga los hooks activados.
+#
+# QUÉ NO HACE TODAVÍA: los pipelines de los componentes (web, services,
+# functions, supabase). Están diseñados en
+# docs/01-planificacion/03-estrategia-devops.md pero sus carpetas aún no
+# tienen código. Un pipeline que no puede correr en verde es peor que no
+# tenerlo: entrena al equipo a ignorar el rojo.
+# Se activan cuando exista código real — ver pipelines/README.md.
+#
+# ⚠️ RECORDATORIO: este workflow REPORTA, no bloquea. Lo que impide un merge es
+# la regla de protección de rama en Settings → Branches.
+# Ver pipelines/README.md, sección "Lo que falta para que la barrera bloquee".
+
+name: guardrails
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Permisos mínimos: este workflow solo LEE.
+permissions:
+  contents: read
+
+# Un push nuevo cancela la ejecución anterior de la misma rama.
+concurrency:
+  group: guardrails-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  confidencialidad:
+    name: Confidencialidad y reglas técnicas
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # --all           → audita TODO el árbol versionado, no solo el diff.
+      #                   Un cambio puede volver tóxico un archivo no tocado.
+      # --require-lists → sin las listas privadas, FALLA en vez de avisar.
+      #                   En CI nadie lee avisos: un check verde es una
+      #                   afirmación de seguridad y no puede ser hueca.
+      - name: Gate de confidencialidad
+        env:
+          HV_PROHIBITED_CLIENTS: ${{ secrets.HV_PROHIBITED_CLIENTS }}
+          HV_PROHIBITED_IDENTIFIERS: ${{ secrets.HV_PROHIBITED_IDENTIFIERS }}
+        run: node .agents/skills/hv-guardrails/scripts/run-guardrails.mjs --all --require-lists
+
+  integridad-contexto:
+    name: Integridad del contexto agentico
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Verifica que skills, subagentes, hooks y el motor de reglas sigan
+      # íntegros. Incluye un autotest del motor con los valores reales de las
+      # listas privadas. Las comprobaciones que dependen del entorno local
+      # (MCPs, junction) se marcan "no aplica" cuando CI está definido.
+      - name: Verificación de contexto
+        run: node tools/verify-context.mjs
+
+  convencion-commits:
+    name: Convención de commits
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Conventional Commits
+        run: node pipelines/checks/commit-convention.mjs "origin/${{ github.base_ref }}..HEAD"

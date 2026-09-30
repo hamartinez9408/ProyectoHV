@@ -3,6 +3,12 @@
 > **Fase:** 1 · Planificación (se define aquí) — se construye en 3, se activa en 5,
 > se opera en 6.
 >
+> **⚠️ Este documento es el DISEÑO. El estado de implementación vive en
+> [`pipelines/README.md`](../../pipelines/README.md).**
+> Resumen: la **Capa 4** (gates de calidad y confidencialidad) está
+> implementada; los pipelines **A–D** de los componentes están diseñados y
+> bloqueados hasta que exista código en sus carpetas.
+>
 > **Decisión humana**
 > - **Qué decidió Harold:** incluir DevOps dentro de la planificación, exigir
 >   despliegue automático por pipeline, y que todo gate **bloquee** en vez de

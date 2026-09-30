@@ -113,10 +113,38 @@ for (const f of files) {
   }
 }
 
-if (!hasPrivateLists().clients) {
-  console.warn('\n⚠️  [ADVERTENCIA] Sin lista de clientes: la confidencialidad de clientes NO se verificó.')
-  console.warn('   Local: .agents/rules/private/prohibited-clients.txt')
-  console.warn('   CI:    secret HV_PROHIBITED_CLIENTS')
+// ── Listas privadas ─────────────────────────────────────────────────────────
+// En local, una lista ausente produce un AVISO: hay una persona leyéndolo y
+// puede arreglarlo. En CI NO hay nadie leyendo, y un check verde es una
+// AFIRMACIÓN de seguridad. Por eso `--require-lists` convierte la ausencia en
+// FALLO: un verde sin verificar confidencialidad es peor que un rojo.
+const lists = hasPrivateLists()
+const faltan = []
+if (!lists.identifiers) faltan.push('identificadores (HV_PROHIBITED_IDENTIFIERS)')
+if (!lists.clients) faltan.push('clientes (HV_PROHIBITED_CLIENTS)')
+
+// Severidad: SOLO --require-lists (o la env var) la activan.
+// `--all` es ALCANCE, no severidad — sondear todo el árbol no debe convertir
+// un aviso en fallo, o el bootstrap de un clon nuevo terminaría en rojo.
+const estricto = process.argv.includes('--require-lists') || process.env.HV_REQUIRE_LISTS === '1'
+
+if (faltan.length) {
+  const lineas = [
+    '',
+    `⚠️  Sin lista de: ${faltan.join(' · ')}`,
+    '   Local: .agents/rules/private/*.txt   (o: npm run setup:ai)',
+    '   CI:    definirlas como secrets e inyectarlas por variable de entorno',
+  ]
+  if (estricto) {
+    console.error(lineas.join('\n'))
+    console.error('')
+    console.error('⛔ MODO ESTRICTO: una lista ausente es un FALLO, no un aviso.')
+    console.error('   Se activa con --require-lists o HV_REQUIRE_LISTS=1.')
+    console.error('   Un check verde que no verificó confidencialidad afirma una')
+    console.error('   seguridad que nunca comprobó. El pipeline debe caer.')
+    process.exit(1)
+  }
+  console.warn(lineas.join('\n'))
 }
 
 if (hasErrors) {

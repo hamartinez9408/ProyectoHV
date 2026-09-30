@@ -160,6 +160,9 @@ try {
 check('.gitignore protege lo privado', giOk, giDetail)
 
 // ── 9. MCPs ─────────────────────────────────────────────────────────────────
+// Los MCPs viven en el config de USUARIO, que no viaja por git. En CI esa
+// comprobación no aplica: se reporta como tal en vez de fallar por diseño.
+const enCI = Boolean(process.env.CI)
 let mcpDetail = '', mcpOk = false, forbDetail = '', forbOk = true
 try {
   const manifest = JSON.parse(readFileSync(join(HERE, 'mcp.manifest.json'), 'utf8'))
@@ -169,15 +172,39 @@ try {
   const req = Object.entries(manifest.servers).filter(([, d]) => d.required).map(([n]) => n)
   const falta = req.filter((n) => !servers[n])
   mcpOk = falta.length === 0
-  mcpDetail = falta.length ? `faltan: ${falta.join(', ')} — corre node tools/bootstrap.mjs`
+  mcpDetail = falta.length ? `faltan: ${falta.join(', ')} — corre npm run setup:ai`
                              : `${req.length} servidores requeridos presentes`
 
   const forb = (manifest.forbidden?.names || []).filter((n) => servers[n])
   forbOk = forb.length === 0
   forbDetail = forb.length ? `PRESENTES: ${forb.join(', ')} — ver AGENTS.md Regla #0` : 'ninguno'
 } catch (e) { mcpDetail = e.message }
-check('MCPs requeridos instalados', mcpOk, mcpDetail)
-check('Sin MCPs corporativos en scope de usuario', forbOk, forbDetail)
+
+check('MCPs requeridos instalados', mcpOk || enCI,
+  enCI ? 'no aplica en CI: el config de usuario no viaja por git' : mcpDetail, !enCI)
+check('Sin MCPs corporativos en scope de usuario', forbOk, forbDetail, !enCI)
+
+// ── 10. Capa 4 presente y sintácticamente sana ──────────────────────────────
+// Una barrera que no se ejecuta es peor que una ausente: genera confianza
+// falsa. Un error de sintaxis en el YAML hace exactamente eso — el workflow
+// aparece en el repo y nunca corre. Node no trae parser de YAML, así que se
+// comprueban las claves de nivel raíz y el error más común (comentarios '//',
+// que son de JavaScript: YAML usa '#').
+let ymlOk = false, ymlDetail = ''
+try {
+  const wf = join(ROOT, '.github', 'workflows', 'guardrails.yml')
+  if (!existsSync(wf)) {
+    ymlDetail = 'falta .github/workflows/guardrails.yml — la Capa 4 no está implementada'
+  } else {
+    const t = readFileSync(wf, 'utf8')
+    const claves = ['name:', 'on:', 'jobs:'].filter((k) => !new RegExp(`^${k}`, 'm').test(t))
+    const malos = t.split('\n').filter((l) => /^\s*\/\//.test(l))
+    if (claves.length) ymlDetail = `sin claves de nivel raíz: ${claves.join(' ')}`
+    else if (malos.length) ymlDetail = `${malos.length} línea(s) con comentario '//' — YAML usa '#'`
+    else { ymlOk = true; ymlDetail = 'guardrails.yml presente, sin errores de sintaxis evidentes' }
+  }
+} catch (e) { ymlDetail = e.message }
+check('Capa 4 (workflow de CI) sana', ymlOk, ymlDetail)
 
 // ── Salida ──────────────────────────────────────────────────────────────────
 console.log('\n╔══════════════════════════════════════════════════════════════════╗')
