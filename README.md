@@ -15,6 +15,23 @@ completo con el que fue construido, incluidas las prácticas de IA aplicadas.
 | [`AGENTS.md`](AGENTS.md) | **Regla #0**: MCPs prohibidos (credenciales corporativas) + reglas de datos |
 | [`tools/MCP-REGISTRY.md`](tools/MCP-REGISTRY.md) | Qué MCP es de quién. Auditoría de dueño |
 | [`tools/AGENT-COORDINATION.md`](tools/AGENT-COORDINATION.md) | Reparto de responsabilidades entre ZCode y Antigravity |
+| [`docs/03-implementacion/ONBOARDING.md`](docs/03-implementacion/ONBOARDING.md) | Puesta en marcha reproducible |
+
+## Puesta en marcha
+
+```bash
+git clone <url> proyectohv && cd proyectohv
+node tools/bootstrap.mjs        # aplica MCPs, recrea la junction, reporta faltantes
+node tools/verify-context.mjs   # debe imprimir "CONTEXTO ÍNTEGRO"
+```
+
+Las instrucciones, skills, reglas, hooks y subagentes **viajan por git y no
+requieren acción**: se aplican al clonar. Los MCPs viven en el config de usuario
+—fuera del repositorio, porque el repo es público— y los aplica el bootstrap.
+
+`verify-context.mjs` no se limita a comprobar ficheros: **hace un autotest del
+motor de reglas** con los valores reales de las listas privadas. Garantizar los
+mismos resultados no se logra documentando, se logra verificando.
 
 ---
 

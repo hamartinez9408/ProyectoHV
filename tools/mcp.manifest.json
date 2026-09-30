@@ -1,0 +1,89 @@
+{
+  "$comment": "Manifiesto declarativo de MCPs de ProyectoHV. NO contiene secretos: declara QUE servidor se necesita y QUE variable de entorno exige. `node tools/bootstrap.mjs` lo aplica al config de usuario.",
+  "version": 1,
+  "scope": "user",
+  "scopeReason": "Los MCPs viven en ~/.zcode/cli/config.json (scope de usuario), NO en el config del workspace. El del workspace va al repositorio PUBLICO y un secreto ahi quedaria publicado.",
+  "servers": {
+    "hv-github": {
+      "required": true,
+      "phases": [3, 5],
+      "why": "Pull Requests, estado de CI, releases, repositorio",
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "ghcr.io/github/github-mcp-server"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+      },
+      "secrets": [
+        {
+          "var": "GITHUB_PERSONAL_ACCESS_TOKEN",
+          "howToGet": "github.com/settings/personal-access-tokens (fine-grained)",
+          "minScopes": "Contents: RW · Pull requests: RW · Metadata: RO · Actions: RO",
+          "oauthAlternative": "El servidor oficial soporta OAuth: agrega -p 127.0.0.1:8085:8085 -e GITHUB_OAUTH_CALLBACK_PORT=8085 y omite el PAT. No hay secreto en disco."
+        }
+      ]
+    },
+    "hv-atlassian": {
+      "required": true,
+      "phases": [1, 2],
+      "why": "Epicas en Jira y especificaciones en Confluence",
+      "type": "http",
+      "url": "https://mcp.atlassian.com/v1/mcp/authv2",
+      "secrets": [],
+      "notes": "Servidor oficial remoto con OAuth 2.1: no requiere token en disco. Exige sitio PROPIO de Atlassian Cloud (free hasta 10 usuarios) con correo personal, nunca el de un empleador. El endpoint viejo /v1/sse dejo de funcionar el 30-jun-2026."
+    },
+    "hv-supabase": {
+      "required": false,
+      "blockedBy": "Crear cuenta y organizacion PROPIAS de Supabase (nunca corporativas)",
+      "phases": [2, 3, 4, 5],
+      "why": "Migraciones, politicas RLS y Edge Functions",
+      "command": "npx",
+      "args": ["-y", "@supabase/mcp-server-supabase", "--read-only"],
+      "env": { "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}" },
+      "secrets": [
+        {
+          "var": "SUPABASE_ACCESS_TOKEN",
+          "howToGet": "supabase.com/dashboard/account/tokens"
+        }
+      ]
+    },
+    "hv-sentry": {
+      "required": false,
+      "phases": [6],
+      "why": "Monitoreo de errores en produccion",
+      "blockedBy": "Confirmar el paquete oficial vigente antes de fijarlo",
+      "secrets": [
+        {
+          "var": "SENTRY_AUTH_TOKEN",
+          "howToGet": "sentry.io/settings/auth-tokens/"
+        }
+      ]
+    }
+  },
+  "expectedNeutral": {
+    "$comment": "Servidores sin credenciales corporativas que ya deben existir en el scope de usuario. El bootstrap solo VERIFICA que esten, no los instala.",
+    "context7": "Documentacion actualizada de librerias (fases 1 y 2)",
+    "tavily_search": "Investigacion, benchmarks y precios (fase 1)",
+    "playwright": "E2E y verificacion visual (fase 4)",
+    "magicuidesign": "Componentes de UI (fase 2)",
+    "netlify": "Despliegue del frontend (fase 5)",
+    "docker": "Contenedores y tests de integracion (fases 3 y 5)"
+  },
+  "forbidden": {
+    "$comment": "Servidores de infraestructura corporativa. El bootstrap los REPORTA si aparecen en el scope de usuario de este proyecto.",
+    "names": [
+      "azure-devops", "supabase", "postgres-origen", "postgres-destino",
+      "sophiex-mcp", "sophiex-ragflow", "sophiex-itsm-sdp",
+      "sophiex-zabbix", "sophiex-ollama"
+    ],
+    "reason": "Apuntan a infraestructura del empleador o de sus clientes. Ver AGENTS.md Regla #0."
+  },
+  "constraints": {
+    "node": ">=20",
+    "docker": "Requerido para hv-github (contenedor oficial)",
+    "os": "Windows para el junction de skills; en Linux/macOS usar ln -s"
+  }
+}
