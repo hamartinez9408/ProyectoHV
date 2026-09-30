@@ -9,11 +9,11 @@
 
 | Documento | Qué contiene | Estado |
 |---|---|---|
-| [`01-analisis-viabilidad.md`](01-analisis-viabilidad.md) | Viabilidad técnica, económica y de portafolio; qué se gana y qué se arriesga | ⬜ pendiente |
-| [`02-modelo-costos.md`](02-modelo-costos.md) | Costos por componente **con fuentes verificadas** y las tres trampas de la capa gratuita | ✅ |
-| [`03-estrategia-devops.md`](03-estrategia-devops.md) | Los 4 pipelines, gates bloqueantes, métricas DORA, entornos y secretos | ✅ |
-| [`04-especificacion-requisitos.md`](04-especificacion-requisitos.md) | Requisitos funcionales y no funcionales; el documento de especificaciones | ⬜ pendiente |
-| `05-cronograma.md` | Roadmap por entregas verticales | ⬜ pendiente |
+| [`01-analisis-viabilidad.md`](01-analisis-viabilidad.md) | Viabilidad técnica, económica y de portafolio; dimensionamiento VM ARM y riesgos | ✅ Completo |
+| [`02-modelo-costos.md`](02-modelo-costos.md) | Costos por componente **con fuentes verificadas** y las tres trampas de la capa gratuita | ✅ Completo |
+| [`03-estrategia-devops.md`](03-estrategia-devops.md) | Los 4 pipelines, gates bloqueantes, métricas DORA, entornos y secretos | ✅ Completo |
+| [`04-especificacion-requisitos.md`](04-especificacion-requisitos.md) | Requisitos funcionales (RF) y no funcionales (RNF); trazabilidad de componentes | ✅ Completo |
+| [`05-cronograma.md`](05-cronograma.md) | Roadmap por rebanadas verticales (Slices 0 a 5) y criterios DoD | ✅ Completo |
 
 Los **criterios de aceptación** y las historias de usuario se derivan en
 [`../03-implementacion/`](../03-implementacion/).
@@ -24,21 +24,23 @@ Los **criterios de aceptación** y las historias de usuario se derivan en
 
 | | |
 |---|---|
-| **Agentes** | `sdlc-00-assessment` → `sdlc-00b-questions` → `sdlc-01-hu-refinement` → `sdlc-02-sprint-planning` |
+| **Agentes** | `hv-orchestrator` · subagentes de capa · `hv-compliance` |
 | **MCPs** | `hv-atlassian` (épicas en Jira · spec en Confluence) · `tavily_search` · `context7` |
-| **Skills** | `sdlc-01-hu-refinement` (INVEST + BDD) · `sdlc-02-sprint-planning` (COSMIC + SNAP) |
+| **Skills** | `hv-review-planning` · `hv-review-requirements` (INVEST + BDD) |
 
 ---
 
 ## Gate de salida de la fase
 
-Esta fase no se cierra hasta que existan:
+Estado de cumplimiento de los criterios de salida:
 
-- [ ] **Modelo de costos con fuentes citadas** — sin fuentes no es un modelo, es una opinión
-- [ ] **Línea base DORA declarada** — contra qué se va a comparar el resultado
-- [ ] **Estrategia de pipelines aprobada** — los 4 pipelines con sus gates
-- [ ] **Análisis de viabilidad de portafolio** — qué tecnología evidencia cada componente
-- [ ] Especificación de requisitos revisada y **redirigida por Harold** (no solo leída)
+- [x] **Modelo de costos con fuentes citadas** — en `02-modelo-costos.md` (< USD 3/mes).
+- [x] **Línea base DORA declarada** — en `03-estrategia-devops.md` (§3).
+- [x] **Estrategia de pipelines aprobada** — en `03-estrategia-devops.md` (4 pipelines + Capa 4).
+- [x] **Análisis de viabilidad de portafolio** — en `01-analisis-viabilidad.md` (dimensionamiento y tecnologías).
+- [x] **Especificación de requisitos estructurada** — en `04-especificacion-requisitos.md` (RF-01 a RF-13 y RNF-01 a RNF-08).
+- [x] **Roadmap de entregas verticales definido** — en `05-cronograma.md` (Slices 0 a 5).
+- [ ] **Revisión y redirección humana de Harold** — validación final humana antes del diseño formal.
 
 ---
 
