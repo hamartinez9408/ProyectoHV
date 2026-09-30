@@ -1,0 +1,16 @@
+{
+  "hv-safety-gate": {
+    "PreToolUse": [
+      {
+        "matcher": "run_command|write_to_file|replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/pretool-safety.mjs",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

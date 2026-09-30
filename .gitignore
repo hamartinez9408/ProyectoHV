@@ -1,0 +1,101 @@
+# ═══════════════════════════════════════════════════════════════
+# ProyectoHV — .gitignore
+# El repositorio es PÚBLICO. Todo lo privado y todo secreto va bloqueado aquí.
+# ═══════════════════════════════════════════════════════════════
+
+# ── SECRETOS — nunca, bajo ninguna circunstancia ───────────────
+.env
+.env.*
+!.env.example
+*.token
+*.pem
+*.key
+credentials.json
+secrets.json
+token_cache.json
+
+# ── CONTENIDO PRIVADO DEL PORTAFOLIO ──────────────────────────
+# Generado desde perfil-maestro.md. Contiene expectativa salarial y
+# detalle técnico profundo. Se inyecta a Supabase vía secret de CI.
+content/private/
+content/*.private.json
+!content/private/.gitkeep
+
+# ── LISTA PRIVADA DE NOMBRES DE CLIENTES ──────────────────────
+# El repo es PÚBLICO. Escribir los nombres de clientes en un archivo
+# versionado ES la filtración que la regla #0 prohíbe. La lista vive aquí,
+# fuera de git, y el motor de reglas la lee en tiempo de ejecución.
+.agents/rules/private/
+!**/.gitkeep
+.agents/.backup*
+**/.backup*
+
+# ── JUNCTION DE SKILLS — NO VERSIONAR ─────────────────────────
+# .zcode/skills es una junction de Windows hacia .agents/skills.
+# Git la ATRAVIESA y guardaría los mismos skills DOS VECES, con riesgo de
+# que las copias diverjan. El origen es .agents/skills (convención
+# multi-herramienta); la junction la recrea tools/bootstrap.mjs.
+.zcode/skills/
+
+# ── CARPETAS AJENAS AL REPO ───────────────────────────────────
+# Este proyecto vive fuera de cualquier carpeta corporativa, así que git nunca
+# las vería: listarlas aquí no aportaba protección. Y nombrarlas publicaría
+# justo el dato que la Regla #0 protege. De ese caso se encarga
+# .agents/scripts/hv-rules.mjs, en tiempo de escritura, que es donde importa.
+
+# ── Node / Next.js ────────────────────────────────────────────
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+next-env.d.ts
+
+# ── Java / Maven / Gradle ─────────────────────────────────────
+target/
+build/
+.gradle/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# ── Python (pipeline de contenido) ────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# ── Supabase local ────────────────────────────────────────────
+supabase/.branches/
+supabase/.temp/
+
+# ── Docker / IaC ──────────────────────────────────────────────
+*.tfstate
+*.tfstate.*
+.terraform/
+*.tfvars
+!*.tfvars.example
+
+# ── SOPS / Ansible ────────────────────────────────────────────
+*.sops.yaml
+vault-password*
+*.vault
+
+# ── Backups de base de datos (pueden traer datos de terceros) ─
+dumps/
+backups/
+*.dump
+*.sql.gz
+
+# ── Artefactos de pruebas y cobertura ─────────────────────────
+coverage/
+playwright-report/
+test-results/
+.nyc_output/
+
+# ── Entorno ───────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/settings.json
+*.log

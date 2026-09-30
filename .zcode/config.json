@@ -1,0 +1,24 @@
+{
+  "mcp": {
+    "servers": {}
+  },
+  "hooks": {
+    "enabled": true,
+    "timeoutMs": 10000,
+    "events": {
+      "PreToolUse": [
+        {
+          "matcher": "Bash|Write|Edit",
+          "hooks": [
+            {
+              "type": "process",
+              "command": "node",
+              "args": ["${ZCODE_PROJECT_DIR}/.zcode/hooks/pretool-safety-zcode.mjs"],
+              "timeoutMs": 8000
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

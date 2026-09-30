@@ -1,0 +1,53 @@
+# ═══════════════════════════════════════════════════════════════
+# ProyectoHV — .gitattributes
+# Normaliza finales de línea para que el repositorio produzca el MISMO
+# resultado en Windows, Linux y macOS. Sin esto, cada colaborador
+# introduce ruido de CRLF/LF en los diffs y los scripts fallan al ejecutarse.
+# ═══════════════════════════════════════════════════════════════
+
+# Regla base: git decide, normalizando a LF dentro del repositorio.
+* text=auto eol=lf
+
+# ── Scripts ejecutables: SIEMPRE LF ───────────────────────────
+# Un shebang con CRLF rompe la ejecución en Linux/macOS.
+*.mjs    text eol=lf
+*.js     text eol=lf
+*.cjs    text eol=lf
+*.sh     text eol=lf
+*.py     text eol=lf
+
+# ── Artefactos de configuración y datos: SIEMPRE LF ───────────
+# El motor de reglas lee estos archivos por línea; CRLF cambia los
+# patrones y puede hacer que una comparación falle en silencio.
+*.json   text eol=lf
+*.jsonc  text eol=lf
+*.yml    text eol=lf
+*.yaml   text eol=lf
+*.md     text eol=lf
+*.sql    text eol=lf
+*.txt    text eol=lf
+*.ts     text eol=lf
+*.tsx    text eol=lf
+*.java   text eol=lf
+
+# ── Listas privadas: fuera del repo, pero si alguna se cuela ──
+*.gitignore  text eol=lf
+
+# ── Binarios: nunca normalizar ────────────────────────────────
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.webp   binary
+*.ico    binary
+*.pdf    binary
+*.docx   binary
+*.xlsx   binary
+*.jar    binary
+*.dump   binary
+
+# ── Linguist: excluir del cálculo de lenguajes del repo ───────
+# La documentación y las skills son el exhibit, no el código del producto.
+docs/**      linguist-documentation
+.agents/**   linguist-documentation
+tools/**     linguist-documentation
