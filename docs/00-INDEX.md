@@ -12,8 +12,8 @@
 
 | # | Fase | Documento | Estado |
 |---|---|---|---|
-| 1 | **Planificación** | [`01-planificacion/`](01-planificacion/) | 🟡 |
-| 2 | **Diseño** | [`02-diseno/`](02-diseno/) · [ADRs](02-diseno/adr/) | 🟡 |
+| 1 | **Planificación** | [`01-planificacion/`](01-planificacion/) | 🟢 |
+| 2 | **Diseño** | [`02-diseno/`](02-diseno/) · [ADRs](02-diseno/adr/) | 🟢 |
 | 3 | **Implementación** | [`03-implementacion/`](03-implementacion/) | ⬜ |
 | 4 | **Pruebas** | [`04-pruebas/`](04-pruebas/) | ⬜ |
 | 5 | **Despliegue** | [`05-despliegue/`](05-despliegue/) | ⬜ |
@@ -33,7 +33,7 @@
 | **Integra** | `hv-atlassian` (épicas en Jira, spec en Confluence) · `tavily_search` · `context7` |
 | **Cierra cuando** | Modelo de costos con fuentes citadas · **línea base DORA declarada** · estrategia de pipelines aprobada |
 
-📄 `01-analisis-viabilidad.md` · `02-modelo-costos.md` · `03-estrategia-devops.md` · `04-especificacion-requisitos.md` · `05-roadmap.md`
+📄 `01-analisis-viabilidad.md` · `02-modelo-costos.md` · `03-estrategia-devops.md` · `04-especificacion-requisitos.md` · `05-roadmap.md` · `06-revision-fase-1.md`
 
 ## Fase 2 · Diseño
 
@@ -46,7 +46,7 @@
 | **Integra** | `hv-atlassian` · `magicuidesign` · `context7` · skill `archify` |
 | **Cierra cuando** | **Modelo de amenazas del flujo de acceso 48 h** · ADRs escritos · diagramas renderizados |
 
-📄 `arquitectura.md` · `modelo-datos.md` · `modelo-amenazas.md` · [ADRs](02-diseno/adr/)
+📄 [`01-arquitectura-c4.md`](02-diseno/01-arquitectura-c4.md) · [`02-modelo-datos.md`](02-diseno/02-modelo-datos.md) · [`03-modelo-amenazas-stride.md`](02-diseno/03-modelo-amenazas-stride.md) · [`04-contratos-api.md`](02-diseno/04-contratos-api.md) · [`05-revision-fase-2.md`](02-diseno/05-revision-fase-2.md) · [ADRs](02-diseno/adr/)
 
 ## Fase 3 · Implementación
 
