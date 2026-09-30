@@ -277,3 +277,40 @@ seguridad central. De hecho, es lo que ha pasado.
 **La Fase 1 puede cerrarse formalmente** según la rúbrica. Mi recomendación es
 cerrarla **condicionada** a resolver H-5, H-1 y H-2 antes de que arranque el
 diseño, porque los tres alimentan decisiones de la Fase 2.
+
+---
+
+## 6. Resolución y Subsanación de Hallazgos (Antigravity / Gemini)
+
+*Fecha de resolución: 2026-09-30*
+
+Se implementaron todos los ajustes y conciliaciones técnicas requeridas:
+
+| Hallazgo | Estado | Ajuste Implementado |
+|---|---|---|
+| **H-1** (Saturación CPU en VM) | ✅ Resuelto | Rebalanceo de cuotas CPU Docker a 1.40 OCPU total (Redis 0.10, RabbitMQ 0.20, access 0.40, cv 0.20, search 0.40, nginx 0.10), reservando un **30% de CPU libre (0.60 OCPU)** para el host y el GC. |
+| **H-2** (Aritmética de memoria heap) | ✅ Resuelto | Corrección en `01-analisis-viabilidad.md`: `access-service` con límite de 1.00 GB y `-XX:MaxRAMPercentage=75.0` (768 MB heap). Total memoria contenedores: ~3.88 GB + 2.0 GB SO = ~5.88 GB, dejando **~51% de RAM libre (~6.1 GB)**. |
+| **H-3** (Formato Decisión humana) | ✅ Resuelto | Estandarización a 4 campos obligatorios en los 5 documentos de la fase: (1) Qué decidió Harold, (2) Qué ejecutó la IA, (3) Riesgo técnico asumido conscientemente, y (4) Alternativas descartadas. |
+| **H-4** (Matriz trazabilidad incompleta) | ✅ Resuelto | En `04-especificacion-requisitos.md`, la matriz cubre exhaustivamente los 14 RFs y los 9 RNFs, asociando a cada uno su slice vertical de entrega (1 al 5) y su método concreto de verificación (Test unitario, Testcontainers, E2E Playwright, Gatling, o RLS audit). |
+| **H-5** (Contradicción técnica TTL 48h) | ✅ Resuelto | Desacoplamiento explícito en RF-06 y RF-08: Supabase Auth gestiona únicamente el Magic Link y la identidad efímera; la autorización y expiración residen en PostgreSQL (`access.grants` con `expires_at = now() + interval '48 hours'`) gobernada por RLS (`expires_at > now()`). Ni tokens de sesión de Supabase ni frontend determinan la validez. |
+| **H-6** (Cumplimiento Ley 1581 / Habeas Data) | ✅ Resuelto | Principio de minimización en RF-04 (se eliminó el campo innecesario "motivo de consulta"), consentimiento explícito en RF-14, y política estricta de retención/purga en RNF-09 (enlaces no reclamados borrados en 24 h, anonimización tras 90 días de inactividad). |
+| **H-7** (Denominación del Roadmap) | ✅ Resuelto | Archivo renombrado formalmente a `05-roadmap.md`, referencias cruzadas actualizadas en `00-INDEX.md` y `01-planificacion/README.md`. |
+| **O-1** (Línea base DORA) | ✅ Resuelto | En `03-estrategia-devops.md` (§3), se declara que al ser Greenfield la línea base formal se establece a partir del despliegue del Slice 1. |
+| **O-2** (MTTR vs Recovery Time) | ✅ Resuelto | Se adoptó la denominación contemporánea: *Failed deployment recovery time (MTTR)* con objetivo < 1 h (rollback automatizado en < 2 min). |
+| **O-3** (Trampa 1 Oracle Cloud) | ✅ Resuelto | Incorporada advertencia y directriz de dimensionamiento en `01-analisis-viabilidad.md` (§4) para mantenerse en 2 OCPU / 12 GB RAM previniendo terminación tras agosto 2026. |
+| **O-4** (SonarCloud en CI) | ✅ Resuelto | Declarado SonarCloud SaaS oficial gratuito en `03-estrategia-devops.md` (§1 y §2), evitando gastar memoria RAM en la VM Oracle. |
+| **Meta-hallazgo** (Criterio P-6 en rúbrica) | ✅ Resuelto | Se incorporó el criterio bloqueante **P-6: Consistencia Interna del Paquete** y se actualizaron los 4 campos de P-3 en `.agents/skills/hv-review-planning/references/planning-rubric.md`. |
+
+### Estado final del Checklist de Cierre
+
+| Ítem | Estado |
+|---|---|
+| Modelo de costos con fuentes citadas (< USD 3/mes) | ✅ Resuelto |
+| Línea base DORA declarada (4 métricas) | ✅ Resuelto |
+| Estrategia de pipelines aprobada (SonarCloud + gates bloqueantes) | ✅ Resuelto |
+| Análisis de viabilidad de portafolio (CPU y RAM conciliadas) | ✅ Resuelto |
+| Especificación de requisitos estructurada (RF-01..14, RNF-01..09, Ley 1581, TTL RLS) | ✅ Resuelto |
+| Roadmap de entregas verticales definido (`05-roadmap.md`) | ✅ Resuelto |
+| Rúbrica de planificación actualizada (P-1 a P-6) | ✅ Resuelto |
+| Revisión y redirección humana de Harold | ⬜ **Listo para sign-off humano** |
+

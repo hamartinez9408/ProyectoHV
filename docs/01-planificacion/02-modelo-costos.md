@@ -8,6 +8,9 @@
 > - **Qué ejecutó la IA:** verificación de las cuotas vigentes **contra fuentes**,
 >   y detección de tres supuestos obsoletos que habrían llevado a una decisión
 >   equivocada.
+> - **Riesgo técnico asumido conscientemente:** Operar al límite de cuotas gratuitas
+>   (100 correos/día en Resend y 500 MB en Supabase), mitigado mediante health checks
+>   mensuales, exportación de dumps y TTL estricto de 48 h.
 > - **Alternativas descartadas:** self-hosted runner como estrategia de costo cero
 >   (dejó de ser gratis el 1-mar-2026 — ver `03-estrategia-devops.md` §6).
 

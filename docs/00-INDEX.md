@@ -24,16 +24,16 @@
 
 ## Fase 1 · Planificación
 
-*Análisis de viabilidad · estimación de costos · cronograma · requisitos → especificación*
+*Análisis de viabilidad · estimación de costos · roadmap de entregas · requisitos → especificación*
 
 | | |
 |---|---|
-| **Produce** | Business case · modelo de costos **con fuentes** · roadmap · especificación de requisitos · **estrategia DevOps** · historias de usuario |
+| **Produce** | Business case · modelo de costos **con fuentes** · roadmap de entregas · especificación de requisitos · **estrategia DevOps** · historias de usuario |
 | **Ejecuta** | `sdlc-00-assessment` → `sdlc-00b-questions` → `sdlc-01-hu-refinement` → `sdlc-02-sprint-planning` |
 | **Integra** | `hv-atlassian` (épicas en Jira, spec en Confluence) · `tavily_search` · `context7` |
 | **Cierra cuando** | Modelo de costos con fuentes citadas · **línea base DORA declarada** · estrategia de pipelines aprobada |
 
-📄 `01-analisis-viabilidad.md` · `02-modelo-costos.md` · **`03-estrategia-devops.md`** · `04-especificacion-requisitos.md`
+📄 `01-analisis-viabilidad.md` · `02-modelo-costos.md` · `03-estrategia-devops.md` · `04-especificacion-requisitos.md` · `05-roadmap.md`
 
 ## Fase 2 · Diseño
 

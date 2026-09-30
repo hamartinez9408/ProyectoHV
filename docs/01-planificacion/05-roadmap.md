@@ -1,12 +1,13 @@
-# Cronograma y Roadmap de Entregas Verticales — ProyectoHV
+# Roadmap de Entregas Verticales — ProyectoHV
 
 > **Fase:** 1 · Planificación  
-> **Estado:** Propuesto para revisión  
+> **Estado:** Aprobado en Planificación  
 >
 > **Decisión humana**
 > - **Qué decidió Harold:** Organizar el desarrollo en **rebanadas verticales de funcionalidad (Vertical Slices)** en lugar de capas horizontales aisladas; priorizar el portal público y el exhibit para tener visibilidad inmediata; e implementar el flujo de acceso privado y la búsqueda semántica como fases incrementales sucesivas.
 > - **Qué ejecutó la IA:** Descomposición del backlog en 6 rebanadas verticales de punta a punta (UI + Backend + Persistencia + Tests + CI/CD), estimación de complejidad y criterios de aceptación por entrega.
-> - **Riesgo aceptado conscientemente:** El despliegue de microservicios Java en la VM Oracle Cloud se pospone hasta el Slice 2 para validar primero el pipeline de contenido y frontend en Netlify, reduciendo la fricción inicial.
+> - **Riesgo técnico asumido conscientemente:** El despliegue de microservicios Java en la VM Oracle Cloud se pospone hasta el Slice 2 para validar primero el pipeline de contenido y frontend en Netlify, reduciendo la fricción inicial.
+> - **Alternativas descartadas:** Planificación tradicional en cascada o por capas horizontales técnicas (DB primero, luego APIs, luego UI al final); estimación rígida por fechas calendario fijas (diagrama de Gantt) en un proyecto de exploración y demostración tecnológica individual.
 
 ---
 

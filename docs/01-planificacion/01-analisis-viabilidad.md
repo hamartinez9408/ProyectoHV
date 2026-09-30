@@ -6,7 +6,8 @@
 > **Decisión humana**
 > - **Qué decidió Harold:** Construir el portafolio como un exhibit técnico vivo de ingeniería de software y adopción de IA; utilizar una arquitectura heterogénea para generar evidencia real y verificable de tecnologías listadas en su perfil profesional (§11.3 de `perfil-maestro.md`: Java Spring Boot, RabbitMQ, MongoDB, Serverless, Docker); y fijar una cota máxima de costo operacional en < USD 3/mes.
 > - **Qué ejecutó la IA:** Estructuración de la matriz tridimensional de viabilidad (estratégica de carrera, técnica/arquitectónica y económica/operativa), análisis de dimensionamiento de recursos sobre la VM Oracle Cloud (ARM) y mapeo de modos de fallo.
-> - **Riesgo aceptado conscientemente:** Mayor sobrecarga cognitiva y operacional al gestionar cuatro runtimes independientes (Edge/Next.js, Spring Boot en VM, AWS Lambda y PostgreSQL/RLS), mitigada mediante desacoplamiento estricto por pipelines (A–D) y automatización con Docker y Ansible.
+> - **Riesgo técnico asumido conscientemente:** Mayor sobrecarga cognitiva y operacional al gestionar cuatro runtimes independientes (Edge/Next.js, Spring Boot en VM, AWS Lambda y PostgreSQL/RLS), mitigada mediante desacoplamiento estricto por pipelines (A–D) y automatización con Docker y Ansible.
+> - **Alternativas descartadas:** Desarrollar un portafolio web monolítico simple (SSG puro) que no evidenciaría el stack backend enterprise ni gobernanza distribuida; contratar infraestructura cloud de pago (> $15-30/mes) descartada frente al reto de ingeniería de costo cero.
 
 ---
 
@@ -45,20 +46,22 @@ El núcleo del cómputo persistente reside en una instancia **Oracle Cloud Alway
 
 Se analizó la viabilidad de empaquetar los microservicios Java 21 y la infraestructura de soporte (RabbitMQ, Redis) dentro de esta cota de recursos:
 
-| Contenedor / Servicio | Base Image | Memoria Límite (RAM) | CPU Quota | Estrategia de Optimización |
+| Contenedor / Servicio | Base Image | Memoria Límite (RAM) | CPU Quota (Ceiling) | Estrategia de Optimización |
 |---|---|---|---|---|
-| **Redis 7 (Cache)** | `redis:7-alpine` | 256 MB | 0.25 OCPU | Cache volátil de tokens efímeros y rate limiting. |
-| **RabbitMQ 3.13** | `rabbitmq:3-alpine` | 512 MB | 0.25 OCPU | Broker liviano sin plugins pesados innecesarios. |
-| **access-service** | Eclipse Temurin 21 JRE | 1.25 GB | 0.50 OCPU | Java Virtual Threads (Loom), Heap máx. 768 MB (`MaxRAMPercentage=75`). |
-| **cv-service** | Eclipse Temurin 21 JRE | 1.00 GB | 0.25 OCPU | Heap máx. 512 MB, servicio de baja carga enfocado en datos privados. |
-| **search-service** | Eclipse Temurin 21 JRE | 1.50 GB | 0.50 OCPU | Integración con pgvector / embeddings; heap máx. 1 GB. |
-| **Nginx Reverse Proxy** | `nginx:alpine` | 128 MB | 0.25 OCPU | SSL termination (Let's Encrypt / Certbot), compresión Gzip/Brotli. |
+| **Redis 7 (Cache)** | `redis:7-alpine` | 256 MB | 0.10 OCPU | Cache volátil de tokens efímeros y rate limiting. |
+| **RabbitMQ 3.13** | `rabbitmq:3-alpine` | 512 MB | 0.20 OCPU | Broker liviano sin plugins pesados innecesarios. |
+| **access-service** | Eclipse Temurin 21 JRE | 1.00 GB | 0.40 OCPU | Virtual Threads (Loom), Heap máx. 768 MB (`MaxRAMPercentage=75.0`). |
+| **cv-service** | Eclipse Temurin 21 JRE | 768 MB | 0.20 OCPU | Heap máx. 512 MB (`MaxRAMPercentage=66.6`), servicio de baja carga. |
+| **search-service** | Eclipse Temurin 21 JRE | 1.25 GB | 0.40 OCPU | Integración pgvector; heap máx. 896 MB (`MaxRAMPercentage=70.0`). |
+| **Nginx Reverse Proxy** | `nginx:alpine` | 128 MB | 0.10 OCPU | SSL termination (Certbot), compresión y proxying. |
 | **Sistema Operativo & Buffers** | Ubuntu 24.04 LTS ARM | 2.00 GB | — | Margen reservado para el kernel Linux y page cache. |
 
-**Balance de Carga y Recursos:**
-- **Memoria Total Requerida:** ~6.6 GB.
+**Balance de Carga y Recursos (Memoria y CPU):**
+- **Memoria Asignada Contenedores:** ~3.88 GB + 2.0 GB SO = **~5.88 GB**.
 - **Memoria Disponible en VM:** 12.0 GB.
-- **Margen de Seguridad:** **45% de memoria libre** (~5.4 GB de holgura), lo que previene fallos por Out-Of-Memory (OOM-killer) bajo picos de carga.
+- **Holgura de Memoria:** **~51% libre** (~6.1 GB de holgura), protección absoluta contra el OOM-killer.
+- **CPU Quotas Techo (Límite simultáneo):** 1.40 OCPU asignados sobre 2.00 OCPU disponibles.
+- **Holgura de CPU:** **30% libre** (0.60 OCPU reservados para el host, tareas cron, GC y buffers). En Docker, las cuotas son techos bajo contención, no reservas exclusivas; tener un techo global de 1.4 OCPU garantiza que los 6 contenedores jamás asfixien la CPU del sistema operativo.
 - **Arquitectura de Procesador:** Todas las imágenes seleccionadas (`eclipse-temurin`, `redis`, `rabbitmq`, `nginx`) cuentan con soporte nativo de fábrica para `linux/arm64`.
 
 ### 3.2 Desacoplamiento de Servicios
@@ -75,11 +78,13 @@ De acuerdo con el desglose formal de `docs/01-planificacion/02-modelo-costos.md`
 - **Cota Máxima Permitida:** **< USD 3.00 / mes**.
 
 ### Mitigación de Trampas de la Capa Gratuita:
-1. **Pausa de Supabase a los 7 días de inactividad:**
-   - *Mitigación:* Se implementa un health check sintético semanal programado mediante GitHub Actions (`cron`) o AWS EventBridge que ejecuta una consulta ligera (`SELECT 1`), manteniendo el proyecto despierto sin costo.
-2. **Límite de 100 correos/día en Resend:**
-   - *Mitigación:* Suficiente para la demanda esperada de reclutadores (~5-10 solicitudes diarias). El acceso tiene TTL de 48 horas y límite de 2 extensiones, lo que limita la frecuencia de generación de correos.
-3. **Minutos de GitHub Actions en Repos Públicos:**
+1. **Recorte de Oracle Cloud ARM a 2 OCPU / 12 GB (junio 2026):**
+   - *Mitigación:* Se dimensionó la arquitectura completa para operar estrictamente dentro del nuevo límite (1 instancia Ampere A1 de 2 OCPU / 12 GB RAM), garantizando que ninguna instancia supere la cuota Always Free y evitando la terminación intempestiva que Oracle aplicó a cuentas sobreasignadas tras el 18-ago-2026.
+2. **Pausa de Supabase a los 7 días de inactividad (con 0 días de backup):**
+   - *Mitigación:* Se implementa un health check sintético semanal programado mediante GitHub Actions (`cron`) que ejecuta una consulta ligera (`SELECT 1`), manteniendo el proyecto despierto sin costo. Además, se exportan dumps de esquema periódicos en el pipeline CI.
+3. **Límite de 100 correos/día en Resend:**
+   - *Mitigación:* Suficiente para la demanda esperada de evaluadores (~5-10 solicitudes diarias). El acceso tiene TTL de 48 horas y límite de 2 extensiones, lo que limita la frecuencia de generación de correos.
+4. **Minutos de GitHub Actions en Repos Públicos:**
    - *Mitigación:* El repositorio se mantiene público. Esto otorga minutos de runner estándar gratuitos e ilimitados.
 
 ---

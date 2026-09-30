@@ -13,7 +13,7 @@
 | [`02-modelo-costos.md`](02-modelo-costos.md) | Costos por componente **con fuentes verificadas** y las tres trampas de la capa gratuita | ✅ Completo |
 | [`03-estrategia-devops.md`](03-estrategia-devops.md) | Los 4 pipelines, gates bloqueantes, métricas DORA, entornos y secretos | ✅ Completo |
 | [`04-especificacion-requisitos.md`](04-especificacion-requisitos.md) | Requisitos funcionales (RF) y no funcionales (RNF); trazabilidad de componentes | ✅ Completo |
-| [`05-cronograma.md`](05-cronograma.md) | Roadmap por rebanadas verticales (Slices 0 a 5) y criterios DoD | ✅ Completo |
+| [`05-roadmap.md`](05-roadmap.md) | Roadmap por rebanadas verticales (Slices 0 a 5) y criterios DoD | ✅ Completo |
 
 Los **criterios de aceptación** y las historias de usuario se derivan en
 [`../03-implementacion/`](../03-implementacion/).
@@ -38,8 +38,8 @@ Estado de cumplimiento de los criterios de salida:
 - [x] **Línea base DORA declarada** — en `03-estrategia-devops.md` (§3).
 - [x] **Estrategia de pipelines aprobada** — en `03-estrategia-devops.md` (4 pipelines + Capa 4).
 - [x] **Análisis de viabilidad de portafolio** — en `01-analisis-viabilidad.md` (dimensionamiento y tecnologías).
-- [x] **Especificación de requisitos estructurada** — en `04-especificacion-requisitos.md` (RF-01 a RF-13 y RNF-01 a RNF-08).
-- [x] **Roadmap de entregas verticales definido** — en `05-cronograma.md` (Slices 0 a 5).
+- [x] **Especificación de requisitos estructurada** — en `04-especificacion-requisitos.md` (RF-01 a RF-14 y RNF-01 a RNF-09).
+- [x] **Roadmap de entregas verticales definido** — en `05-roadmap.md` (Slices 0 a 5).
 - [ ] **Revisión y redirección humana de Harold** — validación final humana antes del diseño formal.
 
 ---

@@ -6,7 +6,8 @@
 > **Decisión humana**
 > - **Qué decidió Harold:** Delimitar el sistema en dos zonas estrictas de visualización (Pública anonimizada por sector y Privada con control de acceso por Magic Link temporal de 48 h), implementar marca de agua dinámica con trazabilidad de usuario para proteger propiedad intelectual, y desacoplar la búsqueda semántica mediante pgvector.
 > - **Qué ejecutó la IA:** Redacción formal de la especificación técnica de requisitos funcionales (RF) y no funcionales (RNF), contratos de datos preliminares y definición de límites del sistema.
-> - **Riesgo aceptado conscientemente:** El rechazo de correos sin registros DNS MX válidos excluye temporalmente a evaluadores que usen dominios en migración o mal configurados, pero es una salvaguarda necesaria contra abusos y bots.
+> - **Riesgo técnico asumido conscientemente:** El rechazo de correos sin registros DNS MX válidos excluye temporalmente a evaluadores que usen dominios en migración o mal configurados, pero es una salvaguarda necesaria contra abusos y bots.
+> - **Alternativas descartadas:** Autenticación clásica por usuario/contraseña o SSO con OAuth de terceros (introducen fricción al reclutador y complejidad innecesaria frente al Magic Link de 48 h); portal privado sin marca de agua personalizada; búsqueda léxica básica con LIKE/ilike en lugar de embeddings vectoriales.
 
 ---
 
@@ -26,20 +27,23 @@ ProyectoHV es una plataforma web y un ecosistema de microservicios concebido par
 - **RF-03 (Búsqueda y Filtrado Rápido):** El sistema debe permitir filtrar habilidades, tecnologías y proyectos en tiempo real mediante interfaz reactiva que maneje los 4 estados de datos.
 
 ### Módulo B: Acceso y Seguridad (`services/access` y `functions/`)
-- **RF-04 (Solicitud de Acceso Privado):** El evaluador debe poder ingresar su correo corporativo, nombre, empresa y motivo de consulta en un formulario público.
+- **RF-04 (Solicitud de Acceso con Minimización de Datos):** El evaluador debe ingresar su correo corporativo (campo obligatorio) y opcionalmente su nombre o empresa (para personalización de la marca de agua). En cumplimiento con el principio de minimización de datos (Ley 1581), no se solicitan datos innecesarios como motivos de consulta.
 - **RF-05 (Validación DNS MX en Tiempo Real):** El servicio `access-service` debe verificar mediante consulta DNS que el dominio del correo ingresado cuente con servidores de correo (MX) activos. Si el dominio no tiene registros MX o es de un proveedor gratuito no autorizado, debe rechazar la solicitud con un error estructurado RFC 9457 (HTTP 422).
-- **RF-06 (Generación de Magic Link con TTL 48 h):** Si el dominio es válido, el sistema debe generar un token criptográfico seguro (SHA-256) con expiración exacta a las 48 horas (`now() + 48 hours`) y publicar un evento `AccessRequestedEvent` a RabbitMQ.
+- **RF-06 (Concesión de Acceso 48 h y Enlace Mágico Portador):** Si el dominio es válido, el sistema registra una concesión en `access.grants` con `expires_at = now() + interval '48 hours'` y genera un token portador de un solo uso (secreto criptográfico aleatorio cuyo hash SHA-256 se persiste con TTL de 24 horas para su reclamo). Se publica un evento `AccessRequestedEvent` a RabbitMQ.
 - **RF-07 (Despacho Serverless de Magic Link):** Una función AWS Lambda (`functions/notifier`) debe consumir el evento de RabbitMQ/cola y despachar el correo con el enlace mágico a través del proveedor transaccional (Resend).
-- **RF-08 (Autenticación y Sesión Segura):** Al hacer clic en el enlace mágico, el sistema debe autenticar la sesión en Supabase y emitir una cookie HTTP-only segura.
+- **RF-08 (Reclamo de Concesión y Sesión Independiente):** Al hacer clic en el enlace mágico, `access-service` valida el token de un solo uso, lo marca como consumido y autentica al usuario en Supabase Auth. La sesión de Supabase Auth es independiente de la duración de la concesión: el acceso a los datos lo decide exclusivamente la política RLS en cada consulta (`expires_at > now()`). La interfaz web consulta el estado de la concesión y fuerza el cierre de sesión cuando esta vence.
 - **RF-09 (Control de Extensiones de Acceso):** El evaluador puede solicitar hasta un máximo de dos (2) extensiones de 48 horas cada una, siempre que hayan transcurrido al menos 24 horas de cooldown desde la última extensión. La tercera solicitud debe requerir aprobación manual.
 
 ### Módulo C: Portal Privado y Protección de Información (`services/cv` y `supabase/`)
 - **RF-10 (Consulta de Información Confidencial):** El portal privado debe consultar los datos sensibles (expectativa salarial, rango de negociación, disponibilidad inmediata y detalle técnico de ADRs) protegidos por políticas Row Level Security (RLS) en PostgreSQL que evalúen `auth.uid() IS NOT NULL AND expires_at > now()`.
 - **RF-11 (Estampado Dinámico de Marca de Agua):** Toda vista privada y descarga de CV en formato PDF debe procesarse a través de una función AWS Lambda (`functions/watermark`) que incruste de forma visible y semi-transparente el correo del evaluador, su IP y el timestamp de consulta para disuadir la redistribución no autorizada.
-- **RF-12 (Auditoría Inmutable de Accesos):** Cada solicitud de enlace, apertura de sesión, consulta privada y descarga debe registrarse en MongoDB Atlas con estructura append-only (IP, User-Agent, Email anonimizado, Timestamp, EventType).
+- **RF-12 (Auditoría Inmutable de Accesos y Descargas):** Toda solicitud de enlace, apertura de sesión (`services/access`), consulta privada y descarga de documentos (`services/cv`) debe registrarse en MongoDB Atlas con estructura append-only (IP, User-Agent, Email anonimizado, Timestamp, EventType).
 
 ### Módulo D: Búsqueda Semántica (`services/search`)
 - **RF-13 (Búsqueda Semántica con pgvector):** El servicio `search-service` debe permitir consultas en lenguaje natural (ej. *"experiencia en migraciones de bases de datos de alta transaccionalidad"*), transformando la consulta en embeddings y ejecutando búsqueda por similitud de coseno contra los proyectos y ADRs del portafolio.
+
+### Módulo E: Privacidad y Cumplimiento Normativo (`web/` y `services/access`)
+- **RF-14 (Consentimiento y Aviso de Privacidad - Ley 1581 / Habeas Data):** El formulario de solicitud de acceso debe incluir una casilla de verificación obligatoria (*checkbox* desmarcado por defecto) y enlace visible a la Política de Tratamiento de Datos Personales, registrando la aceptación expresa del evaluador para el tratamiento exclusivo de envío del Magic Link y auditoría de seguridad.
 
 ---
 
@@ -55,22 +59,34 @@ ProyectoHV es una plataforma web y un ecosistema de microservicios concebido par
 | **RNF-06** | **Cobertura de Pruebas** | Las suites automatizadas deben garantizar cobertura en lógica de negocio y seguridad. | **≥ 80% líneas** y **≥ 75% ramas** en pruebas unitarias e integración. |
 | **RNF-07** | **Manejo de Errores** | Toda respuesta de error en APIs REST debe seguir el estándar RFC 9457. | Respuestas uniformes con `ProblemDetail`, sin stack traces expuestos. |
 | **RNF-08** | **Resiliencia y CD** | Capacidad de recuperación inmediata ante despliegues fallidos en producción. | **Rollback automatizado en < 3 minutos**, probado en pipeline. |
+| **RNF-09** | **Retención y Habeas Data** | Los enlaces no reclamados expiran en 24 h y se purgan automáticamente. Las bitácoras con correos se anonimizan tras 90 días. Se provee canal para ejercer derechos de cancelación. | Purga programada en base de datos y canal de contacto declarado en política. |
 
 ---
 
-## 4. Matriz de Trazabilidad Requisitos vs Componentes
+## 4. Matriz de Trazabilidad Completa (Requisitos, Componentes, Slices y Verificación)
 
-```
-┌─────────────────────────────────┬──────────────────────┬──────────────────────┐
-│ Requisito Funcional             │ Componente Principal │ Dependencias / Bus   │
-├─────────────────────────────────┼──────────────────────┼──────────────────────┤
-│ RF-01, RF-02, RF-03 (Público)   │ web/ (Next.js)       │ Netlify Edge CDN     │
-│ RF-04, RF-05, RF-06 (Acceso)    │ services/access      │ DNS Resolver / Redis │
-│ RF-07 (Envío Magic Link)        │ functions/notifier   │ RabbitMQ -> Resend   │
-│ RF-08, RF-09 (Sesión y TTL)     │ services/access      │ Supabase Auth / RLS  │
-│ RF-10 (Datos Privados)          │ services/cv          │ Supabase PostgreSQL  │
-│ RF-11 (Marca de Agua)           │ functions/watermark  │ AWS Lambda Java      │
-│ RF-12 (Auditoría)               │ services/access      │ MongoDB Atlas        │
-│ RF-13 (Búsqueda Semántica)      │ services/search      │ pgvector / LLM API   │
-└─────────────────────────────────┴──────────────────────┴──────────────────────┘
-```
+| Requisito | Componente Principal | Slice Asignado | Dependencias Técnicas | Método de Verificación |
+|---|---|:---:|---|---|
+| **RF-01** | `web/` (Next.js) | Slice 1 | Netlify Edge CDN | Inspección visual + Auditoría Playwright |
+| **RF-02** | `web/` (Exhibit) | Slice 1 | Archify / SVG viewer | Tests E2E Playwright en rutas `/exhibit/*` |
+| **RF-03** | `web/` (Filtros) | Slice 1 | React Client Components | Tests unitarios Vitest (4 estados) |
+| **RF-04** | `web/` (Formulario) | Slice 2 | Next.js Server Actions | Tests de formulario + validación de minimización |
+| **RF-05** | `services/access` | Slice 2 | DNS Resolver / JNDI | Tests unitarios JUnit 5 con mocks DNS + WireMock |
+| **RF-06** | `services/access` | Slice 2 | Supabase / PostgreSQL | Testcontainers PostgreSQL (valida tabla `access.grants`) |
+| **RF-07** | `functions/notifier` | Slice 2 | RabbitMQ / Resend API | Tests unitarios Mockito + Testcontainers RabbitMQ |
+| **RF-08** | `services/access` | Slice 2 | Supabase Auth / Cookies | Pruebas de integración de sesión y logout al expirar |
+| **RF-09** | `services/access` | Slice 2 | PostgreSQL / Redis | Tests de cooldown (24 h) y bloqueo en 3.ª extensión |
+| **RF-10** | `services/cv` | Slice 3 | Supabase RLS | Tests SQL directos con rol anon vs autenticado con TTL |
+| **RF-11** | `functions/watermark` | Slice 3 | AWS Lambda Java / PDFBox | Test unitario de generación PDF + inspección visual |
+| **RF-12** | `services/access` y `services/cv` | Slice 3 | MongoDB Atlas | Tests de inserción append-only y verificación de índices |
+| **RF-13** | `services/search` | Slice 4 | pgvector / LLM API | Tests de similitud coseno con vectores conocidos |
+| **RF-14** | `web/` y `services/access` | Slice 2 | Formulario / BD | Test E2E de validación de checkbox obligatorio |
+| **RNF-01** | Todos | Transversal | Facturación cloud | Monitoreo mensual de costos en panel OCI / Supabase |
+| **RNF-02** | `web/` | Slice 1 | Netlify CDN | Google Lighthouse CI / Web Vitals test |
+| **RNF-03** | Todos | Transversal | `.agents/rules/private/` | Gate bloqueante `run-guardrails.mjs --all` en CI |
+| **RNF-04** | `web/` | Slice 1 | Tailwind / Radix UI | Auditoría axe-core / Playwright A11y tests |
+| **RNF-05** | Backend y Frontend | Slices 1–4 | JVM / Node.js | Script `check-code-metrics.mjs` + SonarQube |
+| **RNF-06** | `services/*` y `web/` | Slices 1–4 | JaCoCo / Vitest coverage | Gate CI JaCoCo (mínimo 80% líneas / 75% ramas) |
+| **RNF-07** | `services/*` | Slices 2–4 | `@RestControllerAdvice` | Pruebas de contrato OpenAPI + RFC 9457 schema validation |
+| **RNF-08** | Pipelines CD | Slice 5 | GitHub Actions / OCI | Simulacro de inyección de fallo y medición de rollback |
+| **RNF-09** | `supabase/` y Mongo | Slice 3 | pg_cron / Mongo TTL | Script de verificación de purga periódica |

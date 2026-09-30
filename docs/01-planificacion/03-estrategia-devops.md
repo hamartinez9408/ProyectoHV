@@ -13,9 +13,15 @@
 > - **Qué decidió Harold:** incluir DevOps dentro de la planificación, exigir
 >   despliegue automático por pipeline, y que todo gate **bloquee** en vez de
 >   informar.
-> - **Qué ejecutó la IA:** diseño de los 4 pipelines, selección de gates,
->   verificación de cuotas de capa gratuita.
-> - **Alternativas descartadas:** self-hosted runner en la VM Oracle (ver §6).
+> - **Qué ejecutó la IA:** diseño de los 4 pipelines, selección de gates bloqueantes,
+>   verificación de cuotas de capa gratuita y flujo de rollback automatizado.
+> - **Riesgo técnico asumido conscientemente:** acoplamiento del pipeline de despliegue
+>   a la disponibilidad de GitHub Actions y runners públicos; riesgo de falsos positivos
+>   en gates estrictos (0 warnings ESLint, Jacoco ≥80%, SonarCloud 0 issues) que bloqueen
+>   entregas, mitigado mediante ejecución local idéntica previa (`pre-commit` y scripts reproducibles).
+> - **Alternativas descartadas:** self-hosted runner en la VM Oracle (desde 1-mar-2026 cobra
+>   en repos privados y en públicos expone la VM a forks, ver §6); pipelines permisivos con
+>   warnings no bloqueantes.
 
 ---
 
@@ -78,7 +84,7 @@ Este pipeline **es** la demostración de "mínima interrupción".
 | | |
 |---|---|
 | **Dispara** | push a `main` con cambios en `services/**` |
-| **Gates** | unit · integración (Testcontainers) · cobertura ≥80% · SonarQube 0 issues |
+| **Gates** | unit · integración (Testcontainers) · cobertura ≥80% · SonarCloud 0 issues |
 | **Entrega** | Imagen → GHCR → `docker compose pull && up -d` → **health check** → rollback si falla |
 
 ```yaml
@@ -100,8 +106,10 @@ jobs:
       - run: mvn -B verify                 # unit + integración (Testcontainers)
       - name: Gate de cobertura
         run: mvn -B jacoco:check           # falla si <80%
-      - name: Gate SonarQube
-        run: mvn -B sonar:sonar -Dsonar.qualitygate.wait=true
+      - name: Gate SonarCloud
+        run: mvn -B sonar:sonar -Dsonar.qualitygate.wait=true -Dsonar.host.url=https://sonarcloud.io
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
       - name: Build y push de imagen
         run: |
@@ -224,12 +232,14 @@ jobs:
 | `tsc --noEmit` | 0 errores | A, B |
 | ESLint | 0 warnings | A |
 | Cobertura | ≥80% líneas · ≥75% branches | A, B |
-| SonarQube | **0 issues nuevos** | A, B |
+| SonarCloud | **0 issues nuevos en New Code** | A, B |
 | Guard de cumplimiento | 0 violaciones fatales | A, B |
 | Integración (Testcontainers) | 100% verde | B |
 | Migraciones desde cero | corren limpias | C |
 | Health check post-deploy | responde en <60 s | B |
 | E2E | flujos críticos verdes | A |
+
+> 💡 **SonarCloud SaaS:** Se utiliza SonarCloud (SaaS oficial gratuito para proyectos open-source) en lugar de una instancia autohospedada de SonarQube en la VM Oracle, protegiendo los ~6.1 GB de RAM libre de la máquina para los microservicios.
 
 **Un pipeline que avisa pero no bloquea no es un pipeline: es un reporte.**
 
@@ -242,8 +252,10 @@ jobs:
 | **Deployment Frequency** | Cada cuánto despliega | Élite: a demanda | Runs exitosos del pipeline B por semana |
 | **Lead Time for Changes** | Commit → producción | **< 24 h** | Primer commit del PR → deploy exitoso |
 | **Change Failure Rate** | % de deploys que rompen | **< 5%** | Deploys con rollback o hotfix / total |
-| **MTTR** | Tiempo de restauración | **< 1 h** | Alerta → deploy de corrección |
+| **Failed deployment recovery time (MTTR)** | Tiempo de restauración tras fallo | **< 1 h** (rollback auto < 2 min) | Alerta o fallo health check → rollback/hotfix verificado |
 
+> **Línea base inicial (Baseline):** Al tratarse de un desarrollo Greenfield, la línea base histórica es cero / no medida. La **línea base formal se establecerá con la entrega del primer slice vertical** (Slice 1, Shell público e infraestructura base desplegada a producción), registrando los primeros valores reales de Lead Time y tiempo de recuperación como punto de partida para contrastar las mejoras a lo largo de los Slices 2 al 5.
+>
 > Las bandas varían entre fuentes (investigación DORA/Accelerate vs. reporte
 > LinearB 2026, que mide 8.1 M de PRs). **Citar la fuente que se use, sin mezclar.**
 
