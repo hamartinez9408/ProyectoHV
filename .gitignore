@@ -17,9 +17,12 @@ token_cache.json
 # ── CONTENIDO PRIVADO DEL PORTAFOLIO ──────────────────────────
 # Generado desde perfil-maestro.md. Contiene expectativa salarial y
 # detalle técnico profundo. Se inyecta a Supabase vía secret de CI.
-content/private/
-content/*.private.json
+# Se excluye el CONTENIDO, no el directorio: git no permite re-incluir un
+# archivo cuyo directorio padre esta excluido, asi que el .gitkeep nunca
+# entraria y un clon nuevo se quedaria sin la carpeta.
+content/private/*
 !content/private/.gitkeep
+content/*.private.json
 
 # ── LISTA PRIVADA DE NOMBRES DE CLIENTES ──────────────────────
 # El repo es PÚBLICO. Escribir los nombres de clientes en un archivo
