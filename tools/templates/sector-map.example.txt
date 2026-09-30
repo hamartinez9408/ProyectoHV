@@ -1,0 +1,28 @@
+# PLANTILLA — Mapa de anonimización cliente → descripción pública
+#
+# ┌─────────────────────────────────────────────────────────────────────┐
+# │ CÓMO USARLA                                                          │
+# │ 1. Copia este archivo a:  .agents/rules/private/sector-map.txt        │
+# │    (o ejecuta  npm run setup:ai  y se copia solo)                     │
+# │ 2. Reemplaza los ejemplos por tus pares reales                        │
+# └─────────────────────────────────────────────────────────────────────┘
+#
+# 🔐 ESTE ARCHIVO ES TAN SENSIBLE COMO LOS NOMBRES MISMOS
+#
+# Es la llave que DESANONIMIZA el contenido publicado. Si se filtra, la
+# anonimización del sitio deja de proteger a nadie: quien tenga el mapa
+# puede revertir cada "caja de compensación" a su nombre real.
+#
+# Por eso vive aquí y no en el repositorio.
+#
+# ── FORMATO ───────────────────────────────────────────────────────────
+#   nombre-real = descripcion-publica
+#
+# La descripción debe describir el SECTOR, no identificar la empresa.
+# "Caja de compensación familiar líder en Colombia" es aceptable en un
+# portafolio; "la caja de compensación de Antioquia" no lo es.
+
+# ── EJEMPLOS (bórralos y pon los reales) ──────────────────────────────
+# Cliente Uno S.A.      = Empresa del sector manufacturero
+# Cliente Dos           = Entidad del sector financiero
+# Cliente Tres          = Operador de telecomunicaciones

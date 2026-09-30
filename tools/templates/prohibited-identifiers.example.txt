@@ -1,0 +1,28 @@
+# PLANTILLA — Datos personales que NUNCA se publican
+#
+# ┌─────────────────────────────────────────────────────────────────────┐
+# │ CÓMO USARLA                                                          │
+# │ 1. Copia este archivo a:  .agents/rules/private/prohibited-identifiers.txt │
+# │    (o ejecuta  npm run setup:ai  y se copia solo)                     │
+# │ 2. Reemplaza las líneas de ejemplo por los valores REALES             │
+# │ 3. Borra las líneas que no apliquen                                   │
+# │                                                                       │
+# │ Sin este archivo los guardas AVISAN pero no protegen. No fallan en    │
+# │ silencio: prefieren un aviso ruidoso a un "OK" falso.                 │
+# └─────────────────────────────────────────────────────────────────────┘
+#
+# ¿POR QUÉ ESTA PLANTILLA NO TIENE LOS VALORES?
+# Porque este repositorio es PÚBLICO. Escribir aquí la lista negra sería
+# publicar exactamente los datos que la lista existe para proteger.
+#
+# EN CI: este archivo no existe (está gitignored). Los valores se inyectan
+# por la variable de entorno HV_PROHIBITED_IDENTIFIERS, separados por coma
+# o salto de línea, desde un secret de GitHub Actions.
+#
+# ── FORMATO ───────────────────────────────────────────────────────────
+# Un valor por línea. Las líneas que empiezan con '#' se ignoran.
+# Se aplica como palabra completa y sin distinguir mayúsculas.
+
+# ── EJEMPLOS (bórralos y pon los reales) ──────────────────────────────
+# 0000000000
+# nombre.apellido@dominio-antiguo.com

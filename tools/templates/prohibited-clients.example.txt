@@ -1,0 +1,31 @@
+# PLANTILLA — Nombres de clientes que NUNCA se publican
+#
+# ┌─────────────────────────────────────────────────────────────────────┐
+# │ CÓMO USARLA                                                          │
+# │ 1. Copia este archivo a:  .agents/rules/private/prohibited-clients.txt │
+# │    (o ejecuta  npm run setup:ai  y se copia solo)                     │
+# │ 2. Reemplaza las líneas de ejemplo por los nombres REALES             │
+# └─────────────────────────────────────────────────────────────────────┘
+#
+# ¿POR QUÉ HACE FALTA ESTE ARCHIVO?
+# El repositorio es PÚBLICO. Un repositorio de portafolio no debe revelar
+# la cartera de clientes de un empleador: es información comercial de un
+# tercero, y divulgarla puede constituir incumplimiento contractual.
+#
+# Los guardas leen esta lista en tiempo de ejecución y BLOQUEAN cualquier
+# escritura —código, documento o dato— que nombre a un cliente.
+#
+# EN CI: variable de entorno HV_PROHIBITED_CLIENTS, separados por coma,
+# desde un secret de GitHub Actions.
+#
+# ── FORMATO ───────────────────────────────────────────────────────────
+# Un nombre por línea. Las líneas que empiezan con '#' se ignoran.
+# Se aplica como palabra completa (\b) y sin distinguir mayúsculas.
+#
+# CUIDADO CON LOS FALSOS POSITIVOS: un nombre genérico (p. ej. "Popular")
+# bloquearía texto legítimo. Prefiere el nombre completo y distintivo.
+
+# ── EJEMPLOS (bórralos y pon los reales) ──────────────────────────────
+# Nombre Cliente Uno S.A.
+# Nombre Cliente Dos
+# Banco de Ejemplo

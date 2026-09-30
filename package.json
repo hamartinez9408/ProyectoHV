@@ -1,0 +1,23 @@
+{
+  "$comment": "Raiz del monorepo ProyectoHV. Sin dependencias: los scripts usan solo Node nativo. Cada componente (web/, services/, functions/) tiene su propio package.json o build.",
+  "name": "proyectohv",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Portafolio tecnico de Harold Augusto Rodriguez Martinez, y exhibit del proceso con el que fue construido.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "setup:ai": "node tools/bootstrap.mjs",
+    "setup:ai:dry": "node tools/bootstrap.mjs --dry-run",
+    "verify:context": "node tools/verify-context.mjs",
+    "guardrails": "node .agents/skills/hv-guardrails/scripts/run-guardrails.mjs",
+    "guardrails:all": "node .agents/skills/hv-guardrails/scripts/run-guardrails.mjs --all",
+    "validate:content": "node .agents/skills/hv-career-pipeline/scripts/validate-career-data.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hamartinez9408/ProyectoHV.git"
+  }
+}

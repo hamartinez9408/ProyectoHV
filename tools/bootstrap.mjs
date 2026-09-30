@@ -16,6 +16,7 @@
 //   node tools/bootstrap.mjs --force    # reescribe entradas ya existentes
 
 import { existsSync, readFileSync, writeFileSync, copyFileSync, symlinkSync, lstatSync } from 'node:fs'
+import { execSync } from 'node:child_process'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { homedir } from 'node:os'
@@ -37,7 +38,7 @@ const info = (m) => console.log(`     ${m}`)
 
 // ── 1. Junction de skills ───────────────────────────────────────────────────
 function ensureSkillsJunction() {
-  console.log('\n[1/3] Junction de skills (.zcode/skills -> .agents/skills)')
+  console.log('\n[1/4] Junction de skills (.zcode/skills -> .agents/skills)')
   console.log('      Motivo: .zcode/skills está gitignored porque git atraviesa la')
   console.log('      junction y guardaría los skills DOS VECES.')
   console.log('      ZCode encuentra .agents/skills de todos modos, así que esto')
@@ -81,7 +82,7 @@ function resolveSecrets(server) {
 }
 
 function applyServers(manifest) {
-  console.log('\n[2/3] Servidores MCP (scope de usuario, fuera del repositorio)')
+  console.log('\n[2/4] Servidores MCP (scope de usuario, fuera del repositorio)')
 
   if (!existsSync(USER_CONFIG)) {
     bad(`No existe ${USER_CONFIG}`)
@@ -153,24 +154,67 @@ function applyServers(manifest) {
 
 // ── 3. Listas privadas ─────────────────────────────────────────────────────
 function checkPrivateLists() {
-  console.log('\n[3/3] Listas privadas (gitignored, no viajan por git)')
+  console.log('\n[3/4] Listas privadas (gitignored, no viajan por git)')
   const dir = join(ROOT, '.agents', 'rules', 'private')
-  const needed = {
-    'prohibited-identifiers.txt': 'HV_PROHIBITED_IDENTIFIERS',
-    'prohibited-clients.txt': 'HV_PROHIBITED_CLIENTS',
-  }
+  const tpl = join(ROOT, 'tools', 'templates')
+  const needed = [
+    ['prohibited-identifiers.txt', 'HV_PROHIBITED_IDENTIFIERS'],
+    ['prohibited-clients.txt', 'HV_PROHIBITED_CLIENTS'],
+    ['sector-map.txt', null],
+  ]
   let missing = 0
-  for (const [file, envVar] of Object.entries(needed)) {
-    if (existsSync(join(dir, file))) { ok(file) }
-    else {
+  for (const [file, envVar] of needed) {
+    const target = join(dir, file)
+    if (existsSync(target)) { ok(file); continue }
+
+    const tmpl = join(tpl, file.replace('.txt', '.example.txt'))
+    if (existsSync(tmpl)) {
+      if (!DRY) {
+        try { copyFileSync(tmpl, target); ok(`${file} — creado desde la plantilla`) }
+        catch (e) { warn(`${file} no se pudo crear: ${e.message}`); missing++; continue }
+      } else { info(`[dry-run] crearía ${file} desde plantilla`); continue }
+      warn(`  ↳ PLANTILLA VACÍA: edítala con los valores reales`)
       missing++
-      warn(`${file} AUSENTE`)
-      info(`Local: créalo con un valor por línea`)
-      info(`CI:    define el secret ${envVar}`)
-      info('Sin esta lista los guardas NO pueden verificar confidencialidad y lo avisarán.')
+    } else {
+      missing++
+      warn(`${file} AUSENTE y sin plantilla`)
+      info('Local: créalo con un valor por línea')
+      if (envVar) info(`CI:    define el secret ${envVar}`)
     }
   }
+  if (missing) {
+    info('')
+    info('Sin las listas, los guardas NO pueden verificar confidencialidad.')
+    info('No fallan en silencio: lo avisan en voz alta. Es deliberado.')
+  }
   return missing === 0
+}
+
+// ── 4. Herramientas ─────────────────────────────────────────────────────────
+function checkToolchain() {
+  console.log('\n[4/4] Herramientas')
+  const major = Number(process.versions.node.split('.')[0])
+  if (major >= 20) ok(`Node v${process.versions.node}`)
+  else bad(`Node v${process.versions.node} — se requiere >= 20`)
+
+  // Java lo necesitan los microservicios (services/), no este script.
+  try {
+    const out = execSync('java -version', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] })
+    const m = /version "?(\d+)/.exec(out + '')
+    if (m && Number(m[1]) >= 21) ok(`Java ${m[1]}`)
+    else warn(`Java ${m ? m[1] : '?'} — los microservicios piden >= 21`)
+  } catch {
+    warn('Java no encontrado en PATH — solo lo necesitan services/ (fases 3 y 5)')
+  }
+
+  // Docker lo necesita hv-github (contenedor oficial).
+  try {
+    execSync('docker version --format "{{.Server.Version}}"', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] })
+    ok('Docker responde')
+  } catch {
+    warn('Docker no responde — hv-github no podrá arrancar (Docker Desktop debe estar activo)')
+  }
+  return true
 }
 
 // ── Main ────────────────────────────────────────────────────────────────────
@@ -183,9 +227,26 @@ const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8'))
 const j = ensureSkillsJunction()
 const m = applyServers(manifest)
 const p = checkPrivateLists()
+checkToolchain()
+
+// ── Gate final: certificar que el clon queda limpio ─────────────────────────
+console.log('\n' + '─'.repeat(64))
+console.log('GATE FINAL — guardrails sobre el árbol versionado completo')
+console.log('─'.repeat(64))
+let gateOk = true
+try {
+  execSync('node .agents/skills/hv-guardrails/scripts/run-guardrails.mjs --all',
+    { cwd: ROOT, stdio: 'inherit' })
+} catch {
+  gateOk = false
+}
 
 console.log('\n' + '─'.repeat(64))
-console.log('SIGUIENTE PASO: verifica que todo quedó igual al resto del equipo:')
-console.log('   node tools/verify-context.mjs')
+if (j && m && gateOk) {
+  console.log('BOOTSTRAP COMPLETO')
+} else {
+  console.log('BOOTSTRAP CON PENDIENTES — revisa los avisos de arriba')
+}
+console.log('Siguiente paso:  npm run verify:context')
 console.log('─'.repeat(64))
-process.exit(j && m ? 0 : 1)
+process.exit(j && m && gateOk ? 0 : 1)

@@ -15,25 +15,61 @@ import { scanForbidden, hasPrivateLists } from '../../../scripts/hv-rules.mjs'
 
 const SKIP = ['.git/', 'node_modules/', '.zcode/hooks/']
 
-function getChangedFiles() {
+function gitLines(cmd) {
   try {
-    const out = execSync('git status --porcelain -uall', {
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'ignore'],
-    })
-    return out
-      .split('\n')
-      .filter(Boolean)
-      .map((line) => line.trim().split(/\s+/).pop())
-      .filter((f) => f && existsSync(f) && statSync(f).isFile())
+    return execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] })
+      .split('\n').filter(Boolean)
   } catch {
     return [] // no es un repo git todavía
   }
 }
 
-const files = process.argv.slice(2).length > 0 ? process.argv.slice(2) : getChangedFiles()
+/** Archivos modificados y sin commitear (vía rápida, pre-commit). */
+function getChangedFiles() {
+  return gitLines('git status --porcelain -uall')
+    .map((line) => line.trim().split(/\s+/).pop())
+    .filter((f) => f && existsSync(f) && statSync(f).isFile())
+}
 
-console.log(`[HV-GUARDRAILS] Analizando ${files.length} archivo(s)...`)
+/** Todos los archivos versionados (auditoría completa). */
+function getTrackedFiles() {
+  return gitLines('git ls-files').filter((f) => existsSync(f) && statSync(f).isFile())
+}
+
+const args = process.argv.slice(2)
+const runAll = args.includes('--all')
+const explicit = args.filter((a) => !a.startsWith('--'))
+
+// ⚠️ En un árbol limpio `git status` no devuelve nada. Interpretarlo como
+// "0 archivos a revisar" imprimiría "todo pasó" sin haber mirado NADA: un
+// verde vacío, peor que no tener gate. Sin cambios pendientes → árbol completo.
+let files
+let alcance
+if (explicit.length) {
+  files = explicit
+  alcance = 'archivos indicados en la línea de comandos'
+} else if (runAll) {
+  files = getTrackedFiles()
+  alcance = 'todos los archivos versionados (--all)'
+} else {
+  files = getChangedFiles()
+  if (files.length === 0) {
+    files = getTrackedFiles()
+    alcance = 'sin cambios pendientes → auditoría completa del árbol'
+    console.log('[HV-GUARDRAILS] Árbol limpio: no hay cambios que auditar.')
+  } else {
+    alcance = 'archivos modificados sin commitear'
+  }
+}
+
+console.log(`[HV-GUARDRAILS] Analizando ${files.length} archivo(s) — ${alcance}`)
+
+if (files.length === 0) {
+  console.error('\n⛔ No hay archivos que auditar. Esto NO es un aprobado:')
+  console.error('   o el repositorio no tiene archivos versionados, o git no está disponible.')
+  console.error('   Un gate que aprueba sin revisar nada es peor que no tener gate.')
+  process.exit(1)
+}
 
 let hasErrors = false
 
