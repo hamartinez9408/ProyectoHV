@@ -34,6 +34,7 @@ const MANIFEST = join(HERE, 'mcp.manifest.json')
 const USER_CONFIG = join(homedir(), '.zcode', 'cli', 'config.json')
 const PROBE = process.argv.includes('--probe')
 const PROBE_TIMEOUT = Number(process.env.HV_PROBE_TIMEOUT_MS || 90000)
+const SECRET_TEMPLATE = /^\$\{(\w+)\}$/
 
 // Herramientas que mutan o destruyen. Si alguna aparece en un servidor marcado
 // `expectReadOnly`, el modo de solo lectura NO está activo — diga lo que diga
@@ -73,9 +74,19 @@ function compare(manifestDef, installed) {
   }
 
   if (manifestDef.args) {
-    const a = JSON.stringify(manifestDef.args)
-    const b = JSON.stringify(installed.args || [])
-    if (a !== b) drift.push('args: difieren')
+    const a = manifestDef.args
+    const b = installed.args || []
+    if (a.length !== b.length) {
+      drift.push('args: difieren en longitud')
+    } else {
+      for (let i = 0; i < a.length; i++) {
+        if (SECRET_TEMPLATE.test(a[i])) {
+          if (!b[i] || SECRET_TEMPLATE.test(b[i])) drift.push(`arg #${i} (${a[i]}): valor ausente o sin resolver`)
+        } else if (a[i] !== b[i]) {
+          drift.push(`arg #${i}: difiere`)
+        }
+      }
+    }
   }
 
   // Los secretos se comparan por PRESENCIA, nunca por valor: el manifiesto

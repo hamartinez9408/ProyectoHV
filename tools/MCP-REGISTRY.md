@@ -206,13 +206,12 @@ contiene el token** — comprobado por escaneo.
 ### `hv-sentry` · Monitoreo de errores — fase 6
 Free tier permanente. Revisar el paquete oficial vigente.
 
-### `hv-atlassian` · Jira + Confluence — fases 1 y 2
-**Reemplaza** el `atlassian` comunitario roto. Servidor oficial remoto, OAuth 2.1,
-sin tokens en disco: `https://mcp.atlassian.com/v1/mcp/authv2`
+### ✅ `hv-atlassian` · Jira + Confluence — INSTALADO 2026-09-30
 
-> Requiere **sitio propio de Atlassian Cloud** (free hasta 10 usuarios) con correo
-> personal. **No el del empleador.** El endpoint viejo `/v1/sse` dejó de funcionar
-> el 30-jun-2026.
+Conectado a la instancia personal **haroldr088.atlassian.net** (Atlassian Cloud Free tier) mediante el servidor oficial `mcp-atlassian` ejecutado con `uvx`.
+**Verificado:** Handshake stdio exitoso, 98 herramientas expuestas, espacio `HV` ("ProyectoHV — Portafolio Profesional") creado y sincronizado con 4 páginas de arquitectura y diseño.
+
+Configurado en `~/.zcode/cli/config.json` y `~/.gemini/antigravity/mcp_config.json` con Personal API Token en scope de usuario. **El repositorio no contiene ningún token ni secreto.**
 
 ---
 

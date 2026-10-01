@@ -30,11 +30,27 @@
       "required": true,
       "phases": [1, 2],
       "why": "Epicas en Jira y especificaciones en Confluence",
-      "type": "http",
-      "url": "https://mcp.atlassian.com/v1/mcp/authv2",
-      "auth": "oauth",
-      "secrets": [],
-      "notes": "Servidor oficial remoto con OAuth 2.1: no requiere token en disco. Exige sitio PROPIO de Atlassian Cloud (free hasta 10 usuarios) con correo personal, nunca el de un empleador. El endpoint viejo /v1/sse dejo de funcionar el 30-jun-2026."
+      "command": "uvx",
+      "args": [
+        "mcp-atlassian",
+        "--confluence-url", "https://haroldr088.atlassian.net/wiki",
+        "--confluence-username", "${ATLASSIAN_EMAIL}",
+        "--confluence-token", "${ATLASSIAN_API_TOKEN}",
+        "--jira-url", "https://haroldr088.atlassian.net",
+        "--jira-username", "${ATLASSIAN_EMAIL}",
+        "--jira-token", "${ATLASSIAN_API_TOKEN}"
+      ],
+      "secrets": [
+        {
+          "var": "ATLASSIAN_EMAIL",
+          "howToGet": "id.atlassian.com"
+        },
+        {
+          "var": "ATLASSIAN_API_TOKEN",
+          "howToGet": "id.atlassian.com/manage-profile/security/api-tokens"
+        }
+      ],
+      "notes": "Servidor oficial mcp-atlassian ejecutado via uvx. Conectado a la instancia personal haroldr088.atlassian.net con Personal API Token. Ofrece 98 herramientas para Confluence y Jira."
     },
     "hv-supabase": {
       "required": true,
