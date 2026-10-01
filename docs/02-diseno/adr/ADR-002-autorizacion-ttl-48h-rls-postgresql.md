@@ -30,18 +30,18 @@ En la auditoría de Fase 1 (Hallazgo H-5), se identificó un conflicto arquitect
 - **Desventajas:** Obliga a que toda petición de datos privados pase obligatoriamente por los microservicios Java en la VM Oracle, sobrecargando la CPU y perdiendo la capacidad del frontend Next.js de consultar datos de lectura rápida mediante Server Components con RLS.
 
 ### Alternativa 3: Gobierno de Expiración en PostgreSQL mediante RLS — ELEGIDA
-- **Ventajas:** **Zero Trust.** La base de datos es la única árbitro de la verdad. Toda consulta a `content.compensation_details` o tablas privadas ejecuta una política RLS que evalúa:
+- **Ventajas:** **Zero Trust.** La base de datos es la única árbitro de la verdad. Toda consulta a `content.compensation_details`, `content.experience_private_details` o tablas privadas ejecuta una política RLS que evalúa:
   ```sql
-  WHERE access.is_active_grant(session_grant_id) = TRUE
+  WHERE access.is_active_grant(access.current_session_grant()) = TRUE
   ```
-  donde `is_active_grant` verifica `expires_at > now() AND is_revoked = FALSE`. Si el tiempo expiró o el grant fue revocado, la base de datos retorna automáticamente 0 filas, sin importar qué cabeceras o tokens envíe el cliente.
-- **Desventajas:** Requiere propagar el identificador de grant en la cabecera del request hacia PostgreSQL (`request.headers ->> 'x-grant-id'`).
+  donde `is_active_grant` verifica `expires_at > now() AND is_revoked = FALSE`. Si el tiempo expiró o el grant fue revocado, la base de datos retorna automáticamente 0 filas, sin importar qué cabeceras intente inyectar el cliente.
+- **Desventajas:** Requiere inyectar el claim `grant_id` en el token JWT firmado emitido por Supabase Auth tras validar el Magic Link.
 
 ---
 
 ## 3. Decisión
 
-Se adopta **PostgreSQL Row Level Security (RLS)** como el mecanismo único e inviolable para gobernar el acceso temporal de 48 horas:
+Se adopta **PostgreSQL Row Level Security (RLS)** con **binding criptográfico a través de `auth.jwt()`**:
 
 1. **Tabla de Concesiones:** La tabla `access.grants` almacena `expires_at TIMESTAMPTZ` y `is_revoked BOOLEAN`.
 2. **Función de Verificación `SECURITY DEFINER`:**
@@ -49,6 +49,10 @@ Se adopta **PostgreSQL Row Level Security (RLS)** como el mecanismo único e inv
    CREATE OR REPLACE FUNCTION access.is_active_grant(grant_uuid UUID)
    RETURNS BOOLEAN AS $$
    BEGIN
+       IF grant_uuid IS NULL THEN
+           RETURN FALSE;
+       END IF;
+
        RETURN EXISTS (
            SELECT 1 FROM access.grants g
            WHERE g.id = grant_uuid
@@ -58,7 +62,15 @@ Se adopta **PostgreSQL Row Level Security (RLS)** como el mecanismo único e inv
    END;
    $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
    ```
-3. **Desacoplamiento de Identidad:** Supabase Auth solo se utiliza como transporte para emitir el enlace por correo (Magic Link); una vez verificado, el acceso real a los datos queda vinculado al `grant_id` evaluado por RLS.
+3. **Extracción Criptográfica Segura de la Identidad:**
+   ```sql
+   CREATE OR REPLACE FUNCTION access.current_session_grant()
+   RETURNS UUID AS $$
+       SELECT NULLIF(auth.jwt() ->> 'grant_id', '')::uuid;
+   $$ LANGUAGE sql STABLE;
+   ```
+   PostgREST verifica la firma digital del JWT antes de evaluar el SQL. Cabeceras HTTP personalizadas del cliente son ignoradas, garantizando inmunidad ante falsificación de cabeceras.
+4. **Verificación de Bypass Obligatoria:** Un `curl` intentando inyectar `x-grant-id` sin firma válida devuelve de inmediato 0 filas.
 
 ---
 

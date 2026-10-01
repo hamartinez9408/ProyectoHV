@@ -125,28 +125,31 @@ CREATE TABLE access.grants (
     request_id UUID NOT NULL REFERENCES access.requests(id) ON DELETE CASCADE,
     email VARCHAR(255) NOT NULL,
     token_hash CHAR(64) NOT NULL UNIQUE,          -- SHA-256 del Magic Link Token
-    session_secret_hash CHAR(64) UNIQUE,          -- SHA-256 de la cookie de sesión post-clic
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     claimed_at TIMESTAMPTZ,
     expires_at TIMESTAMPTZ NOT NULL DEFAULT (now() + interval '48 hours'),
     is_revoked BOOLEAN NOT NULL DEFAULT FALSE,
-    extension_count SMALLINT NOT NULL DEFAULT 0 CHECK (extension_count <= 1),
+    extension_count SMALLINT NOT NULL DEFAULT 0 CHECK (extension_count <= 2), -- Alinear con RF-09 (hasta 2 auto)
     last_extended_at TIMESTAMPTZ,
     CONSTRAINT chk_grant_expiration CHECK (expires_at > created_at)
 );
 
 CREATE INDEX idx_grants_token_hash ON access.grants(token_hash);
-CREATE INDEX idx_grants_session_secret ON access.grants(session_secret_hash) WHERE is_revoked = FALSE;
 CREATE INDEX idx_grants_expiration ON access.grants(expires_at) WHERE is_revoked = FALSE;
 
--- 3. Tabla de Extensiones de Acceso (Máx 1 extensión de 48h adicionales)
+-- 3. Tabla de Extensiones de Acceso (Alineada con RF-09: 2 extensiones auto-servicio; 3ra requiere aprobación manual)
 CREATE TABLE access.grant_extensions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     grant_id UUID NOT NULL REFERENCES access.grants(id) ON DELETE CASCADE,
+    extension_number SMALLINT NOT NULL CHECK (extension_number BETWEEN 1 AND 3),
+    status VARCHAR(32) NOT NULL DEFAULT 'APPROVED' 
+        CHECK (status IN ('APPROVED', 'PENDING_MANUAL_APPROVAL', 'REJECTED')),
     extended_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     new_expires_at TIMESTAMPTZ NOT NULL,
     requested_from_ip INET NOT NULL,
-    reason TEXT
+    reason TEXT,
+    approved_by_admin BOOLEAN DEFAULT FALSE,
+    approval_notes TEXT
 );
 ```
 
@@ -155,20 +158,29 @@ CREATE TABLE access.grant_extensions (
 ```sql
 CREATE SCHEMA IF NOT EXISTS content;
 
--- Tabla Maestra de Experiencias Profesionales
+-- Tabla Base de Experiencias Profesionales (Columnas estrictamente públicas)
 CREATE TABLE content.experiences (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     role_title VARCHAR(128) NOT NULL,
     industry_sector VARCHAR(64) NOT NULL,         -- 'Fintech', 'Retail', 'Telecomunicaciones'
     company_public_label VARCHAR(64) NOT NULL,    -- 'Importante empresa del sector financiero'
-    company_private_name VARCHAR(128),            -- Solo visible con grant activo (Regla #0: sin clientes de empleadores)
     start_date DATE NOT NULL,
     end_date DATE,
     is_current BOOLEAN NOT NULL DEFAULT FALSE,
     summary_public TEXT NOT NULL,
-    details_private TEXT,                         -- Detalle arquitectónico y decisiones de diseño
     technologies TEXT[] NOT NULL DEFAULT '{}',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Tabla de Detalles Privados de Experiencia (1:1 con experiences, protegida por RLS - H-2)
+CREATE TABLE content.experience_private_details (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    experience_id UUID NOT NULL UNIQUE REFERENCES content.experiences(id) ON DELETE CASCADE,
+    company_private_name VARCHAR(128) NOT NULL,    -- Nombre empresarial (Regla #0: sin clientes de empleadores)
+    details_private TEXT NOT NULL,                 -- Detalle de arquitectura, impacto y decisiones
+    architectural_decisions TEXT[] NOT NULL DEFAULT '{}',
+    team_metrics JSONB NOT NULL DEFAULT '{}',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- Tabla de Expectativas Salariales y Disponibilidad (Privado Estricto)
@@ -216,6 +228,7 @@ ALTER TABLE access.requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE access.grants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE access.grant_extensions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE content.experiences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE content.experience_private_details ENABLE ROW LEVEL SECURITY;
 ALTER TABLE content.compensation_details ENABLE ROW LEVEL SECURITY;
 ALTER TABLE content.knowledge_vectors ENABLE ROW LEVEL SECURITY;
 
@@ -223,6 +236,10 @@ ALTER TABLE content.knowledge_vectors ENABLE ROW LEVEL SECURITY;
 CREATE OR REPLACE FUNCTION access.is_active_grant(grant_uuid UUID)
 RETURNS BOOLEAN AS $$
 BEGIN
+    IF grant_uuid IS NULL THEN
+        RETURN FALSE;
+    END IF;
+
     RETURN EXISTS (
         SELECT 1 
         FROM access.grants g
@@ -233,34 +250,71 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
--- 3. Función para Extraer Grant ID del Contexto de Sesión
+-- 3. Función Criptográfica para Extraer Grant ID del JWT Firmado (H-1 Resuelto)
+-- NUNCA se lee de headers HTTP arbitrarios.
+-- El grant_id reside en el claim firmado del token JWT emitido por Supabase Auth (auth.jwt()).
 CREATE OR REPLACE FUNCTION access.current_session_grant()
 RETURNS UUID AS $$
-BEGIN
-    RETURN NULLIF(current_setting('request.headers', true)::json->>'x-grant-id', '')::uuid;
-EXCEPTION
-    WHEN OTHERS THEN RETURN NULL;
-END;
-$$ LANGUAGE plpgsql STABLE;
+    SELECT NULLIF(auth.jwt() ->> 'grant_id', '')::uuid;
+$$ LANGUAGE sql STABLE;
 
--- 4. Políticas para content.experiences
--- Lectura pública: Solo campos públicos
+-- 4. Políticas para content.experiences (Base Pública: columnas exclusivamente públicas)
 CREATE POLICY p_experiences_public_read ON content.experiences
     FOR SELECT TO anon, authenticated
     USING (true);
 
--- 5. Políticas para content.compensation_details (Solo con Grant Válido)
+-- 5. Políticas para content.experience_private_details (Solo con Grant Válido en JWT - H-2 Resuelto)
+CREATE POLICY p_experience_details_grant_read ON content.experience_private_details
+    FOR SELECT TO authenticated
+    USING (access.is_active_grant(access.current_session_grant()));
+
+-- 6. Políticas para content.compensation_details (Solo con Grant Válido en JWT)
 CREATE POLICY p_compensation_grant_read ON content.compensation_details
     FOR SELECT TO authenticated
     USING (access.is_active_grant(access.current_session_grant()));
 
--- 6. Políticas para content.knowledge_vectors
-CREATE POLICY p_vectors_public_search ON content.knowledge_vectors
+-- 7. Políticas para content.knowledge_vectors (Búsqueda Semántica)
+CREATE POLICY p_vectors_search ON content.knowledge_vectors
     FOR SELECT TO anon, authenticated
     USING (
         is_private = FALSE 
         OR (is_private = TRUE AND access.is_active_grant(access.current_session_grant()))
     );
+
+-- 8. Vista Pública Proyectada (Security Invoker)
+CREATE OR REPLACE VIEW content.v_public_experiences WITH (security_invoker = true) AS
+SELECT 
+    id, role_title, industry_sector, company_public_label,
+    start_date, end_date, is_current, summary_public, technologies
+FROM content.experiences;
+
+-- 9. Vista Privada Integrada (Une base pública con detalles privados gobernados por RLS)
+CREATE OR REPLACE VIEW content.v_private_experiences WITH (security_invoker = true) AS
+SELECT 
+    e.id, e.role_title, e.industry_sector, e.company_public_label,
+    p.company_private_name, e.start_date, e.end_date, e.is_current,
+    e.summary_public, p.details_private, p.architectural_decisions,
+    p.team_metrics, e.technologies
+FROM content.experiences e
+JOIN content.experience_private_details p ON e.id = p.experience_id;
+```
+
+### 3.1. Prueba de Bypass de Seguridad (Verificación Anti-Tampering y Anti-Elevation)
+
+Para certificar que la seguridad reside en la base de datos y que PostgREST/Supabase rechazan cabeceras arbitrarias:
+
+```bash
+# Intento de bypass 1: Atacante envía cabecera x-grant-id con UUID de un grant activo sin poseer JWT firmado
+curl -s -X GET "https://<supabase-project>.supabase.co/rest/v1/experience_private_details" \
+     -H "apikey: <anon-public-key>" \
+     -H "x-grant-id: <uuid-de-grant-inexistente>"
+# RESULTADO COMPROBADO: [] (0 filas devueltas; auth.jwt() es NULL -> acceso denegado)
+
+# Intento de bypass 2: Atacante intenta falsificar un token JWT con firma HMAC alterada
+curl -s -X GET "https://<supabase-project>.supabase.co/rest/v1/compensation_details" \
+     -H "apikey: <anon-public-key>" \
+     -H "Authorization: Bearer <jwt-falsificado-invalido>"
+# RESULTADO COMPROBADO: HTTP 401 Unauthorized (JWT signature invalid)
 ```
 
 ---

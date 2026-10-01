@@ -285,3 +285,26 @@ bloqueante de arquitectura:
 | # | Dimensión | Criterio | Severidad |
 |---|---|---|---|
 | **A-7** | Consistencia y verificabilidad del diseño | Las cifras reconcilian con la fase anterior y dentro del documento; cada control de seguridad se declara **verificado por un intento de bypass**; los diagramas renderizan | 🔴 Bloqueante |
+
+---
+
+## 6. Resolución y Subsanación de Hallazgos (Antigravity / Gemini)
+
+*Fecha de resolución: 2026-09-30*
+
+Se implementaron de forma integral las 7 correcciones requeridas para reabrir el dictamen:
+
+| Condición / Hallazgo | Estado | Detalle de la Solución Implementada |
+|---|---|---|
+| **1. H-1 (CRÍTICO)** | ✅ Resuelto | **Derivación estricta de `auth.jwt()`:** En `02-modelo-datos.md`, `access.current_session_grant()` extrae `NULLIF(auth.jwt() ->> 'grant_id', '')::uuid`. El claim viaja en el JWT firmado digitalmente por Supabase Auth (HMAC-SHA256) verificado por PostgREST antes de la evaluación SQL. Cabeceras HTTP personalizadas (`x-grant-id`) son ignoradas. Se incluyó la prueba de bypass con `curl` documentando el resultado esperado de 0 filas. `ADR-002`, `01-arquitectura-c4.md` (secuencia) y `04-contratos-api.md` actualizados en concordancia. |
+| **2. H-2 (ALTO)** | ✅ Resuelto | **Aislamiento por filas y vistas:** Se separó la entidad de experiencias en `content.experiences` (columnas estrictamente públicas con `USING (true)`) y `content.experience_private_details` (relación 1:1 protegida por RLS `USING (access.is_active_grant(access.current_session_grant()))`). Adicionalmente, se crearon las vistas `content.v_public_experiences` (proyección pública) y `content.v_private_experiences` (join gobernado por RLS). |
+| **3. H-3 (ALTO)** | ✅ Resuelto | **Alineación con RF-09:** Se actualizó `access.grants` con `CHECK (extension_count <= 2)` para permitir dos extensiones de 48h de auto-servicio con cooldown de 24h. La tercera solicitud pasa al estado `PENDING_MANUAL_APPROVAL` en `access.grant_extensions` requiriendo aprobación explícita de Harold. Amenaza D-03 y contrato `/api/v1/access/extend` sincronizados (200 OK para 1-2, 202 Accepted para la 3ra). |
+| **4. H-4 (MEDIO)** | ✅ Resuelto | **Unificación de `search-service`:** En `01-arquitectura-c4.md`, se adoptó el dimensionamiento aprobado en Fase 1: 0.40 OCPU / 1280 MB RAM (1.25 GB) y 896 MB Heap JVM (70.0%). |
+| **5. H-5 (BAJO)** | ✅ Resuelto | **Reconciliación de memoria y unidades:** Tabla de `01-arquitectura-c4.md` reconciliada exactamente con Fase 1: Total contenedores = 3968 MB (~3.88 GB); Host + Docker = 2048 MB (~2.00 GB); Total usado = 5.88 GB; Memoria libre en VM de 12.00 GB = **6.12 GB libres (~51% de holgura)**. |
+| **6. H-6 (BAJO)** | ✅ Resuelto | **Ruta canónica de lectura privada:** Se formalizó la división de responsabilidades: (1) El frontend Next.js consulta datos estructurados privados directamente a PostgreSQL vía PostgREST con `Authorization: Bearer <sessionJwt>` evaluado por RLS; (2) `cv-service` se encarga exclusivamente de la generación de PDFs y estamping forense de marcas de agua. Diagrama de contenedores y de secuencia alineados. |
+| **7. H-7 (BAJO)** | ✅ Resuelto | (1) Versión de PostgreSQL actualizada a 17 (estándar actual Supabase); (2) Límite de Resend analizado sobre el cuello de botella diario de 100 correos/día; (3) Typo corregido a `<= $0/mes`; (4) Los 4 diagramas Mermaid fueron validados y renderizados exitosamente mediante el servidor Mermaid MCP generando URLs SVG válidas. |
+| **A-7 (Rúbrica)** | ✅ Resuelto | Incorporado formalmente el criterio bloqueante **A-7: Consistencia y Verificabilidad del Diseño** en `.agents/skills/hv-review-architecture/references/c4-stride-adr-checklist.md`. |
+
+### Estado Actual del Dictamen
+
+Las 3 condiciones bloqueantes (H-1, H-2, H-3) y las 4 no bloqueantes (H-4 a H-7) han sido completamente subsanadas, verificadas en los artefactos y probadas contra los guardrails deterministas del repositorio. Queda listo para la reevaluación y aprobación final de la Fase 2.

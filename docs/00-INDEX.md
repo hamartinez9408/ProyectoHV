@@ -46,7 +46,7 @@
 | **Integra** | `hv-atlassian` · `magicuidesign` · `context7` · skill `archify` |
 | **Cierra cuando** | **Modelo de amenazas del flujo de acceso 48 h** · ADRs escritos · diagramas renderizados |
 
-📄 [`01-arquitectura-c4.md`](02-diseno/01-arquitectura-c4.md) · [`02-modelo-datos.md`](02-diseno/02-modelo-datos.md) · [`03-modelo-amenazas-stride.md`](02-diseno/03-modelo-amenazas-stride.md) · [`04-contratos-api.md`](02-diseno/04-contratos-api.md) · [`05-revision-fase-2.md`](02-diseno/05-revision-fase-2.md) · [ADRs](02-diseno/adr/)
+📄 [`01-arquitectura-c4.md`](02-diseno/01-arquitectura-c4.md) · [`02-modelo-datos.md`](02-diseno/02-modelo-datos.md) · [`03-modelo-amenazas-stride.md`](02-diseno/03-modelo-amenazas-stride.md) · [`04-contratos-api.md`](02-diseno/04-contratos-api.md) · [`05-revision-fase-2.md`](02-diseno/05-revision-fase-2.md) · [`06-revision-independiente-fase-2.md`](02-diseno/06-revision-independiente-fase-2.md) · [ADRs](02-diseno/adr/)
 
 ## Fase 3 · Implementación
 

@@ -50,7 +50,7 @@ flowchart TD
 
 ## 2. Nivel 2: Diagrama de Contenedores (Container Diagram)
 
-El sistema se distribuye en tres zonas de ejecución coordinadas para no incurrir en costos (> $0/mes) respetando las cuotas de la VM Oracle Cloud (2 OCPU / 12 GB ARM):
+El sistema se distribuye en tres zonas de ejecución coordinadas para no incurrir en costos (objetivo <= $0/mes en operación regular o < USD 3/mes total) respetando las cuotas de la VM Oracle Cloud (2 OCPU / 12 GB ARM):
 
 ```mermaid
 flowchart TB
@@ -68,14 +68,14 @@ flowchart TB
         subgraph DockerNetwork["Red Interna Docker (bridge aislado)"]
             AccessSvc["☕ access-service (Spring Boot 3.4 / Java 21)<br/>Gestión de Acceso, Magic Links, DNS MX<br/>(0.40 OCPU / 1024 MB RAM - 768MB Heap)"]
             CvSvc["☕ cv-service (Spring Boot 3.4 / Java 21)<br/>Generación de CV, Watermarking dinámico<br/>(0.20 OCPU / 768 MB RAM - 512MB Heap)"]
-            SearchSvc["☕ search-service (Spring Boot 3.4 / Java 21)<br/>Búsqueda Híbrida Vectorial + Léxica<br/>(0.40 OCPU / 1024 MB RAM - 768MB Heap)"]
+            SearchSvc["☕ search-service (Spring Boot 3.4 / Java 21)<br/>Búsqueda Híbrida Vectorial + Léxica<br/>(0.40 OCPU / 1280 MB RAM - 896MB Heap)"]
             RabbitMQ["🐇 RabbitMQ Broker 3.13<br/>Eventos de dominio y tareas asíncronas<br/>(0.20 OCPU / 512 MB RAM)"]
             Redis["⚡ Redis Cache 7.2<br/>Rate limits, sesiones y tokens efímeros<br/>(0.10 OCPU / 256 MB RAM)"]
         end
     end
 
     subgraph NubeDatos["Capa de Persistencia & Servicios Cloud"]
-        Postgres["🐘 Supabase PostgreSQL 15<br/>Esquemas 'access' y 'content'<br/>RLS Engine · pgvector"]
+        Postgres["🐘 Supabase PostgreSQL 17<br/>Esquemas 'access' y 'content'<br/>RLS Engine · pgvector"]
         Mongo["🍃 MongoDB Atlas Free M0<br/>Colección inmutable: audit_events"]
         Lambda["⚡ AWS Lambda (Java 21)<br/>Procesador de eventos especiales"]
     end
@@ -92,28 +92,28 @@ flowchart TB
     AccessSvc -->|"Registra solicitud y valida grants"| Postgres
     AccessSvc -->|"Auditoría append-only de seguridad"| Mongo
 
-    CvSvc -->|"Lee perfil privado validado por RLS"| Postgres
+    CvSvc -->|"Lee metadatos para PDF y marca de agua"| Postgres
     CvSvc -->|"Audita descargas con marca de agua"| Mongo
 
     SearchSvc -->|"Consultas vectoriales cosine-distance"| Postgres
     SearchSvc -->|"Cache de resultados frecuentes"| Redis
 
-    NextFrontend -->|"Consulta directa de contenido público vía RLS"| Postgres
+    NextFrontend -->|"Lectura de contenido privado con JWT firmado vía RLS"| Postgres
 ```
 
 ### Conciliación de Recursos en la VM Oracle (ARM)
 
 | Contenedor / Proceso | CPU Quota (Ceiling) | Límite RAM Docker | Heap JVM (`MaxRAMPercentage`) |
 |---|---|---|---|
-| **Nginx Reverse Proxy** | 0.10 OCPU | 128 MB | N/A (C nativo) |
-| **access-service** | 0.40 OCPU | 1024 MB | 768 MB (75.0%) |
-| **cv-service** | 0.20 OCPU | 768 MB | 512 MB (66.6%) |
-| **search-service** | 0.40 OCPU | 1024 MB | 768 MB (75.0%) |
-| **RabbitMQ Broker** | 0.20 OCPU | 512 MB | Erlang VM (~256 MB) |
-| **Redis Cache** | 0.10 OCPU | 256 MB | N/A (en memoria ~128 MB) |
-| **Total Contenedores** | **1.40 OCPU** | **3.71 GB** | **2.05 GB Heap acumulado** |
-| **Host Linux + Docker Daemon** | 0.60 OCPU libre (**30%**) | ~2.00 GB | N/A |
-| **Capacidad Total VM** | **2.00 OCPU (100%)** | **12.00 GB RAM** | **~6.1 GB RAM libre (~51%)** |
+| **Nginx Reverse Proxy** | 0.10 OCPU | 128 MB (0.125 GB) | N/A (C nativo) |
+| **access-service** | 0.40 OCPU | 1024 MB (1.00 GB) | 768 MB (75.0%) |
+| **cv-service** | 0.20 OCPU | 768 MB (0.75 GB) | 512 MB (66.6%) |
+| **search-service** | 0.40 OCPU | 1280 MB (1.25 GB) | 896 MB (70.0%) |
+| **RabbitMQ Broker** | 0.20 OCPU | 512 MB (0.50 GB) | Erlang VM (~256 MB) |
+| **Redis Cache** | 0.10 OCPU | 256 MB (0.25 GB) | N/A (en memoria ~128 MB) |
+| **Total Contenedores** | **1.40 OCPU** | **3968 MB (~3.88 GB)** | **2176 MB (~2.13 GB)** |
+| **Host Linux + Docker Daemon** | 0.60 OCPU libre (**30%**) | ~2048 MB (~2.00 GB) | N/A |
+| **Capacidad Total VM** | **2.00 OCPU (100%)** | **12288 MB (12.00 GB)** | **6128 MB (~6.12 GB libre, ~51%)** |
 
 ---
 
@@ -332,10 +332,10 @@ sequenceDiagram
         PG-->>AccessSvc: Fila válida
         AccessSvc->>PG: UPDATE access.grants SET claimed_at = now() WHERE id = grant.id
         AccessSvc->>Mongo: Registra evento AccessGrantClaimed
-        AccessSvc-->>Web: 200 OK {grantId, email, expiresAt, sessionSecret}
-        Web->>Web: Establece cookie de sesión HttpOnly con sessionSecret
-        Web->>PG: SELECT * FROM content.private_profile (RLS evalúa expires_at > now())
-        PG-->>Web: Datos privados completos del CV
+        AccessSvc-->>Web: 200 OK { email, expiresAt, remainingSeconds, sessionJwt }
+        Web->>Web: Establece cookie de sesión HttpOnly con sessionJwt (firmado HMAC-SHA256 con claim grant_id)
+        Web->>PG: SELECT * FROM content.v_private_experiences (Header Authorization: Bearer sessionJwt -> auth.jwt() evalúa expires_at > now())
+        PG-->>Web: Datos privados completos autorizados por RLS
         Web-->>Recruiter: Renderiza portal privado con marca de agua personalizada
     end
 ```

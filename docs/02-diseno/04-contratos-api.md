@@ -96,21 +96,21 @@ Todos los microservicios (`access-service`, `cv-service`, `search-service`) devu
 ---
 
 ### 2.2. `GET /api/v1/access/verify` — Reclamar Token de Magic Link
-- **Descripción:** Valida el token raw criptográfico de 32 bytes contra el `token_hash` en PostgreSQL. Si es válido y no ha expirado, registra la fecha de reclamación (`claimed_at`) e inicializa la cookie de sesión de 48 horas.
+- **Descripción:** Valida el token raw criptográfico de 32 bytes contra el `token_hash` en PostgreSQL. Si es válido y no ha expirado, registra la fecha de reclamación (`claimed_at`) y emite un JWT firmado por Supabase Auth conteniendo el claim `{ grant_id: uuid }`, inyectado en una cookie de sesión HttpOnly segura.
 - **Query Parameters:**
   - `token` (String, requerido): Token Base64URL recibido en el correo.
 
 #### Respuestas
 - **`200 OK`** — Token reclamado exitosamente:
-  - **Headers:** `Set-Cookie: hv_session=s_3a8f...; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=172800`
+  - **Headers:** `Set-Cookie: hv_session=eyJhbGciOiJIUzI1Ni...; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=172800`
   ```json
   {
-    "grantId": "7d9086a3-7ccc-4186-b0cc-325aaa6ec457",
     "email": "e***@empresa-ejemplo.com",
     "expiresAt": "2026-10-02T18:45:00Z",
     "remainingSeconds": 172800,
     "extensionCount": 0,
-    "canExtend": true
+    "canExtend": true,
+    "sessionJwt": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJncmFudF9pZCI6IjdkOTA4NmEz..."
   }
   ```
 - **`401 Unauthorized`** — Token inválido, revocado o expirado (RFC 9457):
@@ -127,13 +127,12 @@ Todos los microservicios (`access-service`, `cv-service`, `search-service`) devu
 
 ### 2.3. `GET /api/v1/access/status` — Consultar Estado y TTL Restante
 - **Descripción:** Permite a la interfaz web consultar los segundos restantes del grant activo para renderizar el banner de tiempo y habilitar el botón de extensión.
-- **Headers Requeridos:** Cookie `hv_session` o header `X-Grant-ID`.
+- **Headers Requeridos:** Cookie `hv_session` o header `Authorization: Bearer <sessionJwt>`.
 
 #### Respuestas
 - **`200 OK`**:
   ```json
   {
-    "grantId": "7d9086a3-7ccc-4186-b0cc-325aaa6ec457",
     "isActive": true,
     "expiresAt": "2026-10-02T18:45:00Z",
     "remainingSeconds": 86340,
@@ -153,28 +152,37 @@ Todos los microservicios (`access-service`, `cv-service`, `search-service`) devu
 
 ---
 
-### 2.4. `POST /api/v1/access/extend` — Solicitar Extensión Única de 48h
-- **Descripción:** Extiende el grant activo por 48 horas adicionales. Requiere que hayan transcurrido al menos 24 horas desde la emisión original (cooldown) y que no se haya extendido antes (`extension_count == 0`).
-- **Headers Requeridos:** Cookie `hv_session`.
+### 2.4. `POST /api/v1/access/extend` — Solicitar Extensión de Acceso (Alineado con RF-09)
+- **Descripción:** Extiende el grant activo por 48 horas adicionales. En auto-servicio se permiten hasta dos (2) extensiones con cooldown de 24 horas; una tercera solicitud pasa a estado de aprobación manual por parte de Harold.
+- **Headers Requeridos:** Cookie `hv_session` o header `Authorization: Bearer <sessionJwt>`.
 
 #### Respuestas
-- **`200 OK`**:
+- **`200 OK`** (Extensiones 1 y 2 automáticas):
   ```json
   {
-    "grantId": "7d9086a3-7ccc-4186-b0cc-325aaa6ec457",
+    "status": "APPROVED",
+    "extensionNumber": 1,
     "newExpiresAt": "2026-10-04T18:45:00Z",
     "remainingSeconds": 172800,
     "extensionCount": 1,
     "message": "Acceso extendido satisfactoriamente por 48 horas adicionales."
   }
   ```
-- **`409 Conflict`** — Límite de extensiones alcanzado:
+- **`202 Accepted`** (Tercera extensión — requiere aprobación manual según RF-09):
+  ```json
+  {
+    "status": "PENDING_MANUAL_APPROVAL",
+    "extensionNumber": 3,
+    "message": "Ha solicitado una tercera extensión. Su solicitud ha sido enviada para aprobación manual por parte de Harold."
+  }
+  ```
+- **`409 Conflict`** — Límite máximo de extensiones excedido:
   ```json
   {
     "type": "https://proyectohv.dev/errors/extension-limit-reached",
     "title": "Límite de extensiones alcanzado",
     "status": 409,
-    "detail": "Solo se permite una única extensión de 48 horas por solicitud de acceso."
+    "detail": "Ha superado el número máximo de extensiones permitidas para esta concesión."
   }
   ```
 - **`429 Too Many Requests`** — Período de cooldown no transcurrido:

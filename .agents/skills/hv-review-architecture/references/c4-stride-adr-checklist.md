@@ -26,8 +26,14 @@ Todo ADR en `docs/02-diseno/adr/` debe seguir la estructura:
 7. **Decisión Humana**:
    - Qué decidió Harold.
    - Qué ejecutó la IA.
-   - Riesgo aceptado conscientemente.
+   - Riesgo técnico asumido conscientemente.
+   - Alternativas descartadas.
 
 ## 3. Límites de Clean Architecture
 - **Dominio**: Prohibido importar paquetes de Spring (`org.springframework.*`), JPA (`jakarta.persistence.*`), o Supabase en el paquete `domain`.
 - **Casos de Uso**: Nombrados en infinitivo o gerundio de negocio (`SolicitarAccesoMagicLinkUseCase`, `ValidarTokenAccesoUseCase`).
+
+## 4. Consistencia y Verificabilidad del Diseño (Criterio A-7)
+- **Consistencia Inter-Fase:** Las cifras de CPU, RAM y cuotas de contenedores deben reconciliar de forma exacta con los valores aprobados en la Fase 1 (`01-analisis-viabilidad.md`).
+- **Verificabilidad de Controles de Seguridad:** Todo control crítico (RLS, expiración, rate limits) debe declarar una **prueba de bypass** explícita (ej. intento con `curl` falsificando cabeceras) con su resultado comprobado (0 filas o 401).
+- **Integridad de Diagramas:** Todo diagrama Mermaid o especificación Archify debe estar sintácticamente validado para prevenir fallos silenciosos de renderizado.
