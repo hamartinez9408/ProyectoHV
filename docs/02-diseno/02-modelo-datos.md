@@ -308,13 +308,13 @@ Para certificar que la seguridad reside en la base de datos y que PostgREST/Supa
 curl -s -X GET "https://<supabase-project>.supabase.co/rest/v1/experience_private_details" \
      -H "apikey: <anon-public-key>" \
      -H "x-grant-id: <uuid-de-grant-inexistente>"
-# RESULTADO COMPROBADO: [] (0 filas devueltas; auth.jwt() es NULL -> acceso denegado)
+# RESULTADO ESPERADO: [] (0 filas devueltas; auth.jwt() es NULL -> acceso denegado; pendiente de certificar con Testcontainers/curl en Fase 3 y 4)
 
 # Intento de bypass 2: Atacante intenta falsificar un token JWT con firma HMAC alterada
 curl -s -X GET "https://<supabase-project>.supabase.co/rest/v1/compensation_details" \
      -H "apikey: <anon-public-key>" \
      -H "Authorization: Bearer <jwt-falsificado-invalido>"
-# RESULTADO COMPROBADO: HTTP 401 Unauthorized (JWT signature invalid)
+# RESULTADO ESPERADO: HTTP 401 Unauthorized (JWT signature invalid; pendiente de certificar en Fase 3 y 4)
 ```
 
 ---

@@ -32,27 +32,26 @@
       "why": "Epicas en Jira y especificaciones en Confluence",
       "type": "http",
       "url": "https://mcp.atlassian.com/v1/mcp/authv2",
+      "auth": "oauth",
       "secrets": [],
       "notes": "Servidor oficial remoto con OAuth 2.1: no requiere token en disco. Exige sitio PROPIO de Atlassian Cloud (free hasta 10 usuarios) con correo personal, nunca el de un empleador. El endpoint viejo /v1/sse dejo de funcionar el 30-jun-2026."
     },
     "hv-supabase": {
       "required": true,
+      "expectReadOnly": true,
       "phases": [2, 3, 4, 5, 6],
-      "why": "Inspeccionar esquema, RLS, advisors, logs, Edge Functions y generar tipos",
-      "command": "npx",
-      "args": [
-        "-y", "@supabase/mcp-server-supabase",
-        "--read-only",
-        "--project-ref", "rhkwtoyhlsamkdsoxehp"
-      ],
-      "env": { "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}" },
+      "why": "Inspeccionar esquema, RLS, advisors, logs y Edge Functions; generar tipos",
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=rhkwtoyhlsamkdsoxehp&read_only=true",
+      "headers": { "Authorization": "Bearer ${SUPABASE_ACCESS_TOKEN}" },
       "secrets": [
         {
           "var": "SUPABASE_ACCESS_TOKEN",
           "howToGet": "supabase.com/dashboard/account/tokens"
         }
       ],
-      "notes": "Doble cerrojo, y ninguno depende de disciplina. (1) --project-ref fija el servidor a UN proyecto: la cuenta hoy ve exactamente uno, y el pin garantiza que siga siendo el unico aunque manana ese token ganara acceso a otra organizacion. (2) --read-only elimina las herramientas de mutacion. Verificado con handshake real: 13 tools, y NO existen apply_migration, deploy_edge_function, create_branch, ni forma de pausar o borrar el proyecto. Restringirlo no es un compromiso: el modelo de amenazas E-02 exige que las migraciones corran solo desde el pipeline de CI, nunca desde una herramienta interactiva.",
+      "notes": "Servidor HOSPEDADO por Supabase, no un proceso local: no exige Node ni descarga paquetes, y la version no queda desactualizada. Doble cerrojo, medido por handshake real — no supuesto. (1) project_ref deshabilita las herramientas de cuenta: create_project, pause_project y restore_project NO aparecen en ninguno de los dos modos. (2) read_only=true baja de 20 a 13 tools y elimina las 6 mutaciones (apply_migration, deploy_edge_function, create_branch, delete_branch, merge_branch, reset_branch). Sin read_only: 20 tools con 6 mutaciones. Con read_only: 13 tools, cero mutaciones.",
+      "whyReadOnly": "No es una limitacion sino el diseno. El modelo de amenazas E-02 exige que las migraciones corran SOLO desde el pipeline de CI, nunca desde una herramienta interactiva. Para escribir SQL contra la base local se usa `supabase start`; contra el proyecto remoto, CI. Quitar read_only=true es un cambio de una palabra, pero contradice E-02 salvo que E-02 se enmiende primero.",
       "projectRefIsNotASecret": "El project ref NO es un secreto, y publicarlo aqui es deliberado. Viaja en la URL del backend y el frontend lo expone en tiempo de ejecucion; la frontera de seguridad es RLS, no el ocultamiento de la URL (03-modelo-amenazas-stride.md, I-02). Los que SI son secretos —access token, secret key y clave de la base de datos— no aparecen en este archivo ni en ningun archivo versionado."
     },
     "hv-sentry": {

@@ -14,7 +14,9 @@
     "verify:context": "node tools/verify-context.mjs",
     "guardrails": "node .agents/skills/hv-guardrails/scripts/run-guardrails.mjs",
     "guardrails:all": "node .agents/skills/hv-guardrails/scripts/run-guardrails.mjs --all",
-    "validate:content": "node .agents/skills/hv-career-pipeline/scripts/validate-career-data.mjs"
+    "validate:content": "node .agents/skills/hv-career-pipeline/scripts/validate-career-data.mjs",
+    "verify:mcp": "node tools/verify-mcp.mjs",
+    "verify:mcp:probe": "node tools/verify-mcp.mjs --probe"
   },
   "repository": {
     "type": "git",

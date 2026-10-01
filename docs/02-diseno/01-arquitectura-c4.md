@@ -113,7 +113,7 @@ flowchart TB
 | **Redis Cache** | 0.10 OCPU | 256 MB (0.25 GB) | N/A (en memoria ~128 MB) |
 | **Total Contenedores** | **1.40 OCPU** | **3968 MB (~3.88 GB)** | **2176 MB (~2.13 GB)** |
 | **Host Linux + Docker Daemon** | 0.60 OCPU libre (**30%**) | ~2048 MB (~2.00 GB) | N/A |
-| **Capacidad Total VM** | **2.00 OCPU (100%)** | **12288 MB (12.00 GB)** | **6128 MB (~6.12 GB libre, ~51%)** |
+| **Capacidad Total VM** | **2.00 OCPU (100%)** | **12288 MB (12.00 GB)** | **6272 MB (~6.12 GB libre, ~51%)** |
 
 ---
 

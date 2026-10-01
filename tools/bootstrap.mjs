@@ -95,17 +95,28 @@ function ensureSkillsJunction() {
 }
 
 // ── 2. Servidores MCP ───────────────────────────────────────────────────────
-function resolveSecrets(server) {
-  const missing = []
-  const env = {}
-  for (const [k, v] of Object.entries(server.env || {})) {
-    const m = /^\$\{(\w+)\}$/.exec(v)
-    if (!m) { env[k] = v; continue }
+const SECRET_TEMPLATE = /^\$\{(\w+)\}$/
+
+/** Expande ${VAR} en cada valor del mapa. Los nombres ausentes van a `missing`. */
+function resolveTemplateMap(map, missing) {
+  const out = {}
+  for (const [k, v] of Object.entries(map || {})) {
+    const m = SECRET_TEMPLATE.exec(v)
+    if (!m) { out[k] = v; continue }
     const val = process.env[m[1]]
-    if (val) env[k] = val
+    if (val) out[k] = val
     else missing.push(m[1])
   }
-  return { env, missing }
+  return out
+}
+
+// Los servidores stdio llevan el secreto en `env`; los HTTP, en `headers`.
+// Soportar solo `env` dejaría los HTTP autenticados imposibles de declarar.
+function resolveSecrets(server) {
+  const missing = []
+  const env = resolveTemplateMap(server.env, missing)
+  const headers = resolveTemplateMap(server.headers, missing)
+  return { env, headers, missing }
 }
 
 function applyServers(manifest) {
@@ -149,8 +160,9 @@ function applyServers(manifest) {
     if (def.url) entry.url = def.url
     if (command) entry.command = command
     if (def.args) entry.args = def.args
-    const { env, missing } = resolveSecrets(def)
+    const { env, headers, missing } = resolveSecrets(def)
     if (Object.keys(env).length) entry.env = env
+    if (Object.keys(headers).length) entry.headers = headers
     entry.timeoutMs = 120000
 
     if (missing.length) {
