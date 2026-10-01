@@ -13,6 +13,7 @@
 credentials.json
 secrets.json
 token_cache.json
+Accesos/
 
 # ── CONTENIDO PRIVADO DEL PORTAFOLIO ──────────────────────────
 # Generado desde perfil-maestro.md. Contiene expectativa salarial y

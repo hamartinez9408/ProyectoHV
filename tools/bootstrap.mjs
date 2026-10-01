@@ -17,7 +17,7 @@
 
 import { existsSync, readFileSync, writeFileSync, copyFileSync, symlinkSync, lstatSync } from 'node:fs'
 import { execSync } from 'node:child_process'
-import { dirname, join, resolve } from 'node:path'
+import { delimiter, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { homedir } from 'node:os'
 
@@ -35,6 +35,33 @@ const ok = (m) => console.log(`  ✅ ${m}`)
 const warn = (m) => console.log(`  ⚠️  ${m}`)
 const bad = (m) => console.log(`  ❌ ${m}`)
 const info = (m) => console.log(`     ${m}`)
+
+// ── Resolución de ejecutables ───────────────────────────────────────────────
+// El manifiesto declara nombres lógicos ("npx", "docker") para seguir siendo
+// portable entre máquinas y sistemas. Pero ZCode lanza el proceso directamente,
+// SIN shell, así que "npx" a secas no resuelve en Windows y el servidor no
+// arranca: la configuración queda escrita y muerta a la vez.
+//
+// Resolver aquí, en el único punto de escritura, evita esa brecha.
+const EXECUTABLE_CANDIDATES = {
+  npx: ['npx.cmd', 'npx.exe', 'npx'],
+  node: ['node.exe', 'node'],
+  docker: ['docker.exe', 'docker'],
+}
+
+/** @returns {string|null} ruta absoluta, o null si no está en el PATH. */
+function findExecutable(logicalName) {
+  const candidates = EXECUTABLE_CANDIDATES[logicalName]
+  if (!candidates) return null
+  const dirs = (process.env.PATH || '').split(delimiter).filter(Boolean)
+  for (const candidate of candidates) {
+    for (const dir of dirs) {
+      const full = join(dir, candidate)
+      if (existsSync(full)) return full
+    }
+  }
+  return null
+}
 
 // ── 1. Junction de skills ───────────────────────────────────────────────────
 function ensureSkillsJunction() {
@@ -103,10 +130,24 @@ function applyServers(manifest) {
 
     if (servers[name] && !FORCE) { skipped.push(name); continue }
 
+    // Un ejecutable lógico que no resuelve es un fallo, no un aviso: instalar
+    // una entrada que no arranca deja un verde en el reporte y un servidor
+    // muerto en la práctica.
+    let command = def.command
+    if (def.command && EXECUTABLE_CANDIDATES[def.command]) {
+      const found = findExecutable(def.command)
+      if (!found) {
+        bad(`${name}: '${def.command}' no está en el PATH — se omite para no dejar una entrada muerta`)
+        info('Instálalo, o declara una ruta absoluta en el manifiesto.')
+        continue
+      }
+      command = found
+    }
+
     const entry = {}
     if (def.type) entry.type = def.type
     if (def.url) entry.url = def.url
-    if (def.command) entry.command = def.command
+    if (command) entry.command = command
     if (def.args) entry.args = def.args
     const { env, missing } = resolveSecrets(def)
     if (Object.keys(env).length) entry.env = env

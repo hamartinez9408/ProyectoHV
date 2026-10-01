@@ -106,18 +106,16 @@ propias, para los servidores `hv-*`.
 | Secreto de CI/CD | GitHub Actions Secrets |
 | **Preferible a ambos** | **OAuth** — no hay secreto que guardar, filtrar ni rotar |
 
-### `hv-supabase` · Supabase personal
-**Bloqueante:** requiere crear **cuenta y organización propias** de Supabase
-(nunca las del empleador). Declarar en `~/.zcode/cli/config.json` — scope de
-usuario, **no** en el del workspace:
+### ✅ `hv-supabase` · Supabase personal — INSTALADO 2026-09-30
 
-```json
-"hv-supabase": {
-  "command": "npx",
-  "args": ["-y", "@supabase/mcp-server-supabase", "--read-only"],
-  "env": { "SUPABASE_ACCESS_TOKEN": "<token-personal>" }
-}
-```
+Conectado al proyecto personal **HVpersonal** (`rhkwtoyhlsamkdsoxehp`, región `ca-central-1`, PostgreSQL 17).
+**Verificado:** handshake remoto exitoso contra `https://mcp.supabase.com/mcp?project_ref=rhkwtoyhlsamkdsoxehp` y compatibilidad validada vía CLI/npx.
+
+Configurado con **doble cerrojo** de seguridad:
+1. `--project-ref rhkwtoyhlsamkdsoxehp`: ancla el servidor a este único proyecto personal.
+2. `--read-only`: expone únicamente las 13 herramientas de consulta (esquema, RLS, advisors, logs, types), impidiendo migraciones o mutaciones interactivas (las migraciones se ejecutan exclusivamente por CI/CD según el modelo STRIDE E-02).
+
+Declarado en `~/.zcode/cli/config.json` y `~/.gemini/antigravity/mcp_config.json` (scope de usuario fuera del repositorio). **Ningún token ni clave vive en archivos versionados.**
 
 ### ✅ `hv-github` · GitHub — INSTALADO 2026-09-30
 
