@@ -63,6 +63,29 @@ function findExecutable(logicalName) {
   return null
 }
 
+// ── Configs de MCP de otros agentes ─────────────────────────────────────────
+// Antigravity mantiene la suya en ~/.gemini, también de scope de usuario: se
+// carga en TODOS los workspaces, incluido este. Ignorarla daría un verde falso
+// — se verificó el 2026-09-30, cuando apareció infraestructura corporativa
+// únicamente en el config de Antigravity.
+const OTROS_CONFIGS_DE_AGENTE = [
+  ['Antigravity', join(homedir(), '.gemini', 'antigravity', 'mcp_config.json')],
+  ['Antigravity', join(homedir(), '.gemini', 'config', 'mcp_config.json')],
+]
+
+function otrosAgentesServidores() {
+  const out = []
+  for (const [tool, path] of OTROS_CONFIGS_DE_AGENTE) {
+    if (!existsSync(path)) continue
+    try {
+      const cfg = JSON.parse(readFileSync(path, 'utf8'))
+      const servers = cfg.mcpServers || cfg.mcp?.servers || {}
+      for (const name of Object.keys(servers)) out.push({ tool, name })
+    } catch { /* config ilegible: se omite, no se inventa */ }
+  }
+  return out
+}
+
 // ── 1. Junction de skills ───────────────────────────────────────────────────
 function ensureSkillsJunction() {
   console.log('\n[1/4] Junction de skills (.zcode/skills -> .agents/skills)')
@@ -191,16 +214,26 @@ function applyServers(manifest) {
   for (const n of skipped) ok(`Ya presente: ${n}`)
   for (const b of blocked) warn(`${b.name}: pendiente — ${b.why}`)
 
-  // Servidores prohibidos presentes en el scope de usuario
+  // Servidores prohibidos. No basta con mirar el config de ZCode: Antigravity
+  // tiene el suyo, tambien de scope de usuario, y carga en TODOS los
+  // workspaces. Una comprobacion que solo mire uno da un verde falso — se
+  // verifico el 2026-09-30, cuando aparecio infraestructura corporativa
+  // unicamente en el otro.
+  const nombresProhibidos = new Set(manifest.forbidden?.names || [])
+  const ajenos = otrosAgentesServidores()
+    .filter((s) => nombresProhibidos.has(s.name))
+    .map((s) => `${s.name} en ${s.tool}`)
   const forbidden = (manifest.forbidden?.names || []).filter((n) => servers[n])
   console.log()
-  if (forbidden.length) {
-    bad(`SERVIDORES CORPORATIVOS DETECTADOS EN ESTE SCOPE: ${forbidden.join(', ')}`)
+  if (forbidden.length || ajenos.length) {
+    if (forbidden.length) bad(`SERVIDORES CORPORATIVOS EN ESTE SCOPE (ZCode): ${forbidden.join(', ')}`)
+    if (ajenos.length) bad(`SERVIDORES CORPORATIVOS EN OTRO CONFIG DE AGENTE: ${ajenos.join(', ')}`)
     info('Apuntan a infraestructura de un empleador o sus clientes.')
     info('Ver AGENTS.md Regla #0. No usarlos desde este proyecto.')
     info('Recomendado: moverlos a un config de workspace aparte.')
+    info('El de Antigravity es de scope de usuario: carga aqui aunque no se declare.')
   } else {
-    ok('Sin servidores corporativos en el scope de usuario')
+    ok('Sin servidores corporativos en ningun config de agente')
   }
   return true
 }

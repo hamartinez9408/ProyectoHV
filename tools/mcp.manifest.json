@@ -77,13 +77,13 @@
     "docker": "Contenedores y tests de integracion (fases 3 y 5)"
   },
   "forbidden": {
-    "$comment": "Servidores de infraestructura corporativa. El bootstrap los REPORTA si aparecen en el scope de usuario de este proyecto.",
+    "$comment": "Servidores de infraestructura corporativa. Se comprueban en TODOS los configs de agente (ZCode y Antigravity), no solo en el de ZCode: el de Antigravity es de scope de usuario y carga en este workspace igual. Ver tools/MCP-REGISTRY.md.",
     "names": [
       "azure-devops", "supabase", "postgres-origen", "postgres-destino",
       "sophiex-mcp", "sophiex-ragflow", "sophiex-itsm-sdp",
-      "sophiex-zabbix", "sophiex-ollama"
+      "sophiex-zabbix", "sophiex-ollama", "mcpsupabaselegacy"
     ],
-    "reason": "Apuntan a infraestructura del empleador o de sus clientes. Ver AGENTS.md Regla #0."
+    "reason": "Apuntan a infraestructura del empleador o de sus clientes. Ver AGENTS.md Regla #0. `mcpsupabaselegacy` se añadió el 2026-09-30: su project_ref coincide con el corpus de backups previos al aislamiento."
   },
   "constraints": {
     "node": ">=20",

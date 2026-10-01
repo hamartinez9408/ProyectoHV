@@ -160,29 +160,68 @@ try {
 check('.gitignore protege lo privado', giOk, giDetail)
 
 // ── 9. MCPs ─────────────────────────────────────────────────────────────────
-// Los MCPs viven en el config de USUARIO, que no viaja por git. En CI esa
+// Los MCPs viven en configs de USUARIO, que no viajan por git. En CI esa
 // comprobación no aplica: se reporta como tal en vez de fallar por diseño.
+//
+// Y no basta con mirar el config de ZCode. Antigravity tiene el suyo, también de
+// scope de usuario, y se carga en TODOS los workspaces — incluido este. Una
+// comprobación que solo mire uno da un verde falso: se verificó el 2026-09-30,
+// cuando apareció infraestructura corporativa únicamente en el otro.
 const enCI = Boolean(process.env.CI)
-let mcpDetail = '', mcpOk = false, forbDetail = '', forbOk = true
+
+const AGENT_CONFIGS = [
+  ['ZCode', join(homedir(), '.zcode', 'cli', 'config.json')],
+  ['Antigravity', join(homedir(), '.gemini', 'antigravity', 'mcp_config.json')],
+  ['Antigravity', join(homedir(), '.gemini', 'config', 'mcp_config.json')],
+]
+
+let mcpDetail = '', mcpOk = false, forbDetail = '', forbOk = true, roDetail = '', roOk = true
 try {
   const manifest = JSON.parse(readFileSync(join(HERE, 'mcp.manifest.json'), 'utf8'))
-  const userCfg = JSON.parse(readFileSync(join(homedir(), '.zcode', 'cli', 'config.json'), 'utf8'))
-  const servers = userCfg.mcp?.servers || {}
+
+  const todos = []
+  for (const [tool, path] of AGENT_CONFIGS) {
+    if (!existsSync(path)) continue
+    try {
+      const cfg = JSON.parse(readFileSync(path, 'utf8'))
+      const servers = cfg.mcp?.servers || cfg.mcpServers || {}
+      for (const [name, def] of Object.entries(servers)) todos.push({ tool, name, def })
+    } catch { /* config ilegible: se omite, no se inventa */ }
+  }
 
   const req = Object.entries(manifest.servers).filter(([, d]) => d.required).map(([n]) => n)
-  const falta = req.filter((n) => !servers[n])
+  const falta = req.filter((n) => !todos.some((s) => s.name === n))
   mcpOk = falta.length === 0
   mcpDetail = falta.length ? `faltan: ${falta.join(', ')} — corre npm run setup:ai`
-                             : `${req.length} servidores requeridos presentes`
+                           : `${req.length} servidores requeridos presentes`
 
-  const forb = (manifest.forbidden?.names || []).filter((n) => servers[n])
-  forbOk = forb.length === 0
-  forbDetail = forb.length ? `PRESENTES: ${forb.join(', ')} — ver AGENTS.md Regla #0` : 'ninguno'
+  const prohibidos = new Set(manifest.forbidden?.names || [])
+  const hallados = todos.filter((s) => prohibidos.has(s.name)).map((s) => `${s.name} en ${s.tool}`)
+  forbOk = hallados.length === 0
+  forbDetail = hallados.length
+    ? `PRESENTES: ${hallados.join(', ')} — cargan en este workspace. Guárdalos en el config del workspace corporativo (ver tools/MCP-REGISTRY.md)`
+    : `ninguno de los ${prohibidos.size}, en ${todos.length} entradas`
+
+  // Invariante: todo servidor de Supabase, de quien sea, debe ser de solo lectura.
+  // No exige saber a quién pertenece el proyecto, que es justo el dato que no
+  // siempre está disponible — y por eso comprueba algo que sí se puede afirmar.
+  const conEscritura = todos
+    .filter((s) => {
+      const text = JSON.stringify(s.def)
+      return /mcp\.supabase\.com/.test(text) && !/read_only/.test(text)
+    })
+    .map((s) => `${s.name} en ${s.tool}`)
+  roOk = conEscritura.length === 0
+  roDetail = conEscritura.length
+    ? `con ESCRITURA: ${conEscritura.join(', ')} — añade &read_only=true o retíralos`
+    : 'todos de solo lectura'
 } catch (e) { mcpDetail = e.message }
 
 check('MCPs requeridos instalados', mcpOk || enCI,
   enCI ? 'no aplica en CI: el config de usuario no viaja por git' : mcpDetail, !enCI)
-check('Sin MCPs corporativos en scope de usuario', forbOk, forbDetail, !enCI)
+check('Sin MCPs corporativos en ningún config de agente', forbOk, forbDetail, !enCI)
+check('Todo servidor Supabase en solo lectura', roOk || enCI,
+  enCI ? 'no aplica en CI: el config de usuario no viaja por git' : roDetail, !enCI)
 
 // ── 10. Capa 4 presente y sintácticamente sana ──────────────────────────────
 // Una barrera que no se ejecuta es peor que una ausente: genera confianza

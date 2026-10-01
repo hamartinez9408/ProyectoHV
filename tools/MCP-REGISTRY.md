@@ -3,8 +3,13 @@
 > Catálogo vivo. Clasifica **cada MCP por dueño** para que ninguna sesión futura
 > confunda las credenciales corporativas con las propias.
 >
-> **Última auditoría:** 2026-09-29 · Fuente: `C:\Users\harol\.zcode\cli\config.json`
-> (MD5 al momento de la auditoría: `0b723285608713d3f6ad76b28b58f30c`)
+> **Última auditoría:** 2026-09-30 · Fuente: `C:\Users\harol\.zcode\cli\config.json`
+> (MD5 al momento de la auditoría: `1f2b6d841f2639b1456cbebd368e6311`) y
+> `~\.gemini\antigravity\mcp_config.json`
+>
+> **Verificación reproducible:** `npm run verify:mcp:probe` — comprueba que cada
+> servidor declarado arranca, autentica y expone lo esperado. No hace falta creer
+> esta tabla: se puede volver a medir.
 
 ---
 
@@ -49,7 +54,47 @@ Durante la auditoría se encontraron secretos sin cifrar en el config global:
 **Respaldos disponibles** (no borrar):
 `config.backup-20260819.json` · `config.backup-20260929-160255.json` ·
 `config.backup-PRE-AISLAMIENTO-20260929-160526.json` ← **estado previo a la
-migración; es la vía de reversión.**
+migración; es la vía de reversión.** · `config.backup-PRE-GITHUB-20260930-175156.json` ·
+`config.backup-PRE-SUPABASE-20260930-192500.json` · `config.backup-PRE-READONLY-20261001002558.json`
+
+---
+
+## 🔴 HALLAZGO 2026-09-30 — el aislamiento no cubría a Antigravity
+
+El aislamiento del 2026-09-29 movió los 9 servidores corporativos al config del
+workspace corporativo. **Eso protegió a ZCode — y solo a ZCode.**
+
+Antigravity tiene su propia configuración de MCPs y es de **scope de usuario**:
+`~\.gemini\antigravity\mcp_config.json`. Se carga en **todos** los workspaces que
+Antigravity abra, **incluido este**. Allí siguen conectados:
+
+| Servidor | Destino | Modo | Riesgo |
+|---|---|---|---|
+| `mcpsupabaselegacy` | 🔴 `project_ref` que **coincide con el corpus de backups previos al aislamiento** | solo lectura | Consultar producción de un cliente desde una sesión de ProyectoHV |
+| `mcpsupabasetarget` | ⚠️ **sin identificar** — no es corporativo ni es `HVpersonal` | **ESCRITURA** | Migraciones y borrado sobre un proyecto que nadie ha clasificado |
+| `azure-devops` | 🔴 organización del empleador | — | Exponer la búsqueda de empleo ante Stefanini |
+| `ssh-vps-contabo` | 🔴 por clasificar | — | — |
+
+**Cómo se confirmó:** patrón estricto (`project_ref=<ref>` o `db.<ref>.supabase.co`)
+contra los refs de los 3 backups **anteriores** al aislamiento.
+
+> ⚠️ **Un primer intento con patrón laxo dio dos falsos positivos** — llegó a
+> marcar `hv-supabase` como corporativo, porque el corpus incluía backups
+> recientes que ya contenían el ref propio. Corregido el corpus, la coincidencia
+> es inequívoca. Se deja escrito porque el método importa: **un guard mal
+> calibrado no protege, y además desinforma.**
+
+> Los valores de los refs **no se escriben aquí.** Este repositorio es público y
+> repetirlos sería la filtración que la clasificación pretende evitar. Se
+> identifican por índice.
+
+**Estado:** reportado, **no corregido**. La configuración de Antigravity no es
+artefacto de ZCode y puede ser necesaria para el workspace corporativo; separarla
+es decisión de Harold. Hasta entonces, la garantía de máquina de la Regla #0 está
+**incompleta**, y eso debe saberse.
+
+**Lo que sí quedó verificado:** `hv-supabase` está correctamente aislado en las
+**dos** configuraciones de Antigravity — proyecto propio y solo lectura.
 
 ---
 
@@ -108,14 +153,36 @@ propias, para los servidores `hv-*`.
 
 ### ✅ `hv-supabase` · Supabase personal — INSTALADO 2026-09-30
 
-Conectado al proyecto personal **HVpersonal** (`rhkwtoyhlsamkdsoxehp`, región `ca-central-1`, PostgreSQL 17).
-**Verificado:** handshake remoto exitoso contra `https://mcp.supabase.com/mcp?project_ref=rhkwtoyhlsamkdsoxehp` y compatibilidad validada vía CLI/npx.
+Conectado al proyecto personal **HVpersonal** (`rhkwtoyhlsamkdsoxehp`, región
+`ca-central-1`, PostgreSQL 17.11). Es el **servidor hospedado por Supabase**, no
+un proceso local: no exige Node ni descarga paquetes, y la versión no queda
+desactualizada.
 
-Configurado con **doble cerrojo** de seguridad:
-1. `--project-ref rhkwtoyhlsamkdsoxehp`: ancla el servidor a este único proyecto personal.
-2. `--read-only`: expone únicamente las 13 herramientas de consulta (esquema, RLS, advisors, logs, types), impidiendo migraciones o mutaciones interactivas (las migraciones se ejecutan exclusivamente por CI/CD según el modelo STRIDE E-02).
+Configurado con **doble cerrojo**, medido por handshake real — no supuesto:
 
-Declarado en `~/.zcode/cli/config.json` y `~/.gemini/antigravity/mcp_config.json` (scope de usuario fuera del repositorio). **Ningún token ni clave vive en archivos versionados.**
+| Cerrojo | Qué impide | Evidencia |
+|---|---|---|
+| `project_ref=<ref>` | Fija el servidor a **un** proyecto y deshabilita las herramientas de cuenta | `create_project`, `pause_project` y `restore_project` no aparecen en ninguno de los dos modos |
+| `read_only=true` | Elimina las mutaciones | Sin él: **20** herramientas con **6** mutaciones. Con él: **13** herramientas, **0** mutaciones |
+
+Sin `read_only`, un `hv-supabase` tendría disponibles `apply_migration`,
+`deploy_edge_function`, `create_branch`, `delete_branch`, `merge_branch` y
+`reset_branch`.
+
+> ⚠️ **Hallazgo del 2026-09-30 — la lección del día.** La primera configuración
+> instalada tenía el `project_ref` pero **le faltaba `read_only=true`**. El
+> manifiesto y la configuración instalada decían cosas distintas y **ninguno de
+> los dos se veía mal por separado**. Lo detectó `verify-mcp.mjs`, que existe
+> precisamente por esto.
+
+> **Por qué solo lectura, y no es una limitación:** el modelo de amenazas E-02
+> exige que las migraciones corran **solo desde el pipeline de CI**, nunca desde
+> una herramienta interactiva. Para escribir SQL contra la base local se usa
+> `supabase start`; contra el proyecto remoto, CI.
+
+Declarado en `~/.zcode/cli/config.json` y en las dos configuraciones de
+Antigravity, siempre en scope de usuario — fuera del repositorio. **Ningún token
+ni clave vive en archivos versionados.**
 
 ### ✅ `hv-github` · GitHub — INSTALADO 2026-09-30
 

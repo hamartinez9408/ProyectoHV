@@ -90,6 +90,26 @@ function compare(manifestDef, installed) {
   return drift
 }
 
+// Los MCPs no viven solo en el config de ZCode. Antigravity tiene el suyo,
+// también de scope de usuario, y carga en TODOS los workspaces — incluido este.
+const OTROS_CONFIGS_DE_AGENTE = [
+  ['Antigravity', join(homedir(), '.gemini', 'antigravity', 'mcp_config.json')],
+  ['Antigravity', join(homedir(), '.gemini', 'config', 'mcp_config.json')],
+]
+
+/** Nombres de servidor de los demás agentes, con la herramienta que los declara. */
+function otrosAgentesServidores() {
+  const out = []
+  for (const [tool, path] of OTROS_CONFIGS_DE_AGENTE) {
+    if (!existsSync(path)) continue
+    try {
+      const cfg = JSON.parse(readFileSync(path, 'utf8'))
+      for (const name of Object.keys(cfg.mcpServers || cfg.mcp?.servers || {})) out.push({ tool, name })
+    } catch { /* config ilegible: se omite, no se inventa */ }
+  }
+  return out
+}
+
 function checkStatic(manifest, servers) {
   console.log('\n[1/2] Manifiesto vs configuración instalada')
   info(`config: ${USER_CONFIG}`)
@@ -119,15 +139,20 @@ function checkStatic(manifest, servers) {
   }
   if (!checked) warn('El manifiesto no declara ningún servidor requerido')
 
-  // Regla #0 — servidores de infraestructura corporativa
-  console.log('\n[2/2] Regla #0 — servidores corporativos en el scope de usuario')
-  const forbidden = (manifest.forbidden?.names || []).filter((n) => servers[n])
-  if (forbidden.length) {
-    bad(`PRESENTES: ${forbidden.join(', ')}`)
-    info('Apuntan a infraestructura de un empleador o sus clientes. Ver AGENTS.md.')
+  // Regla #0 — servidores de infraestructura corporativa, en TODOS los configs
+  console.log('\n[2/2] Regla #0 — servidores corporativos (todos los agentes)')
+  const prohibidos = new Set(manifest.forbidden?.names || [])
+  const hallados = [
+    ...Object.keys(servers).filter((n) => prohibidos.has(n)).map((n) => `${n} en ZCode`),
+    ...otrosAgentesServidores().filter((s) => prohibidos.has(s.name)).map((s) => `${s.name} en ${s.tool}`),
+  ]
+  if (hallados.length) {
+    bad(`PRESENTES: ${hallados.join(', ')}`)
+    info('Apuntan a infraestructura de un empleador o sus clientes, y cargan aquí.')
+    info('Ver AGENTS.md Regla #0 y tools/MCP-REGISTRY.md.')
     failures++
   } else {
-    ok(`ninguno de los ${(manifest.forbidden?.names || []).length} prohibidos está presente`)
+    ok(`ninguno de los ${prohibidos.size} prohibidos, en ningún config de agente`)
   }
 }
 
