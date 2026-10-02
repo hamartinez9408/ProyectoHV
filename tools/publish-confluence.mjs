@@ -154,6 +154,11 @@ const HOME_BODY = `
       <td>Catálogo de ADRs (001 a 006) con alternativas descartadas y decisión humana obligatoria.</td>
       <td><span style="color: green;"><strong>APROBADO</strong></span></td>
     </tr>
+    <tr>
+      <td><strong>04. Vistas de Arquitectura &amp; Diagramas de Integración</strong></td>
+      <td>HLD, arquitectura lógica hexagonal, despliegue físico en OCI ARM, matriz de integración y flujo E2E de acceso efímero 48h.</td>
+      <td><span style="color: green;"><strong>APROBADO</strong></span></td>
+    </tr>
   </tbody>
 </table>
 
@@ -352,6 +357,279 @@ const ADR_BODY = `
 </table>
 `;
 
+const DIAGRAMS_BODY = `
+<h2>Vistas de Arquitectura, Integración y Flujos del Sistema</h2>
+<p><strong>Fase 2: Arquitectura y Diseño</strong> | <strong>Decisión Humana:</strong> Harold Augusto Rodríguez Martínez (Líder Técnico)</p>
+<hr/>
+<p>Este documento formaliza las <strong>5 vistas arquitectónicas de ingeniería</strong> de ProyectoHV para guiar el desarrollo de los microservicios Java 21, la capa de datos en PostgreSQL con RLS, la integración con brokers asíncronos y el despliegue físico en Oracle Cloud Infrastructure (OCI).</p>
+
+<h3>1. 🏛️ Diagrama de Arquitectura de Alto Nivel (HLD)</h3>
+<p>Sintetiza la frontera de entrada (Edge y CDN), el perímetro de seguridad en la DMZ, los microservicios core en Java 21, la infraestructura de mensajería/caché y la persistencia políglota distribuida:</p>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">text</ac:parameter>
+  <ac:plain-text-body><![CDATA[flowchart TB
+    subgraph Actores["👥 Usuarios y Evaluadores"]
+        PublicUser["👤 Visitante Público (Nivel 1: Anonimizado)"]
+        Recruiter["👔 Reclutador / Evaluador (Nivel 2: Acceso 48h)"]
+        AdminUser["🔑 Harold Rodríguez (Tech Lead / Autor)"]
+    end
+
+    subgraph EdgeLayer["🌐 Capa Edge & Entrega Web"]
+        EdgeCDN["⚡ Vercel / Netlify Edge Network"]
+        NextFrontend["💻 Next.js 15 Web App (React 19, TS strict)"]
+        EdgeCDN --> NextFrontend
+    end
+
+    subgraph DMZ["🛡️ Perímetro DMZ (OCI)"]
+        NginxGateway["🚪 Nginx Gateway (SSL/TLS 1.3, Rate Limit)"]
+    end
+
+    subgraph BackendLayer["☕ Microservicios (Java 21 / Spring Boot 3.4)"]
+        AccessSvc["🔐 access-service (:8081)"]
+        CvSvc["📄 cv-service (:8082)"]
+        SearchSvc["🔍 search-service (:8083)"]
+    end
+
+    subgraph AsyncAndCache["⚡ Mensajería & Caché"]
+        RabbitMQ["🐇 RabbitMQ Broker 3.13"]
+        RedisCache["⚡ Redis Cache 7.2"]
+    end
+
+    subgraph PersistenceLayer["💾 Capa de Persistencia"]
+        SupabasePG["🐘 Supabase PostgreSQL 17 (RLS + pgvector)"]
+        MongoAudit["🍃 MongoDB Atlas M0 (Audit append-only)"]
+    end
+
+    subgraph ExternalServices["☁️ Servicios Cloud Externos"]
+        DnsServers["🌍 Servidores DNS (DnsJava MX)"]
+        ResendMail["📧 Resend API (Magic Links)"]
+    end
+
+    PublicUser --> EdgeCDN
+    Recruiter --> EdgeCDN
+    AdminUser --> EdgeCDN
+    NextFrontend --> NginxGateway
+    NextFrontend --> SupabasePG
+    NginxGateway --> AccessSvc
+    NginxGateway --> CvSvc
+    NginxGateway --> SearchSvc
+    AccessSvc --> RabbitMQ
+    RabbitMQ --> AccessSvc
+    AccessSvc --> DnsServers
+    AccessSvc --> ResendMail
+    AccessSvc --> RedisCache
+    AccessSvc --> SupabasePG
+    AccessSvc --> MongoAudit
+    CvSvc --> SupabasePG
+    CvSvc --> MongoAudit
+    SearchSvc --> SupabasePG
+    SearchSvc --> RedisCache]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<hr/>
+
+<h3>2. 🧩 Diagrama Lógico de Arquitectura (Hexagonal &amp; Bounded Contexts)</h3>
+<p>Garantiza el desacoplamiento estricto del dominio puro frente a frameworks externos y librerías de infraestructura en <code>access-service</code>:</p>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">text</ac:parameter>
+  <ac:plain-text-body><![CDATA[classDiagram
+    namespace Access_Domain_Core {
+        class AccessRequest {
+            -RequestId id
+            -Email corporateEmail
+            -ValidationStatus status
+            +markDnsValid()
+            +markDnsInvalid(String reason)
+        }
+        class AccessGrant {
+            -GrantId id
+            -TokenHash tokenHash
+            -Instant expiresAt
+            -int extensionCount
+            +boolean isExpired()
+            +boolean canBeExtended()
+            +extend48Hours()
+        }
+        class CorporateEmailPolicy {
+            +boolean isCorporateDomain(String domain)
+        }
+    }
+
+    namespace Inbound_Ports {
+        class RequestAccessUseCase {
+            <<interface>>
+            +execute(RequestAccessCommand) RequestAccessResult
+        }
+        class ValidateDnsMxUseCase {
+            <<interface>>
+            +execute(ValidateDnsCommand) ValidationResult
+        }
+        class ClaimMagicLinkUseCase {
+            <<interface>>
+            +execute(ClaimTokenCommand) SessionTokenResult
+        }
+    }
+
+    namespace Outbound_Ports {
+        class AccessGrantRepositoryPort {
+            <<interface>>
+            +saveGrant(AccessGrant grant)
+            +findActiveByHash(TokenHash hash) Optional
+        }
+        class DnsResolverPort {
+            <<interface>>
+            +hasMxRecords(String domain) boolean
+        }
+        class NotificationPort {
+            <<interface>>
+            +sendMagicLink(Email to, String token, Instant expiresAt)
+        }
+        class AuditEventPort {
+            <<interface>>
+            +recordSecurityEvent(AuditEvent event)
+        }
+    }
+
+    namespace Adapters {
+        class AccessRestController
+        class AccessEventListener
+        class PostgresGrantAdapter
+        class DnsJavaAdapter
+        class ResendMailAdapter
+        class MongoAuditAdapter
+        class RedisRateLimitAdapter
+    }
+
+    AccessRestController ..|> RequestAccessUseCase
+    AccessEventListener ..|> ValidateDnsMxUseCase
+    PostgresGrantAdapter ..|> AccessGrantRepositoryPort
+    DnsJavaAdapter ..|> DnsResolverPort
+    ResendMailAdapter ..|> NotificationPort
+    MongoAuditAdapter ..|> AuditEventPort]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<hr/>
+
+<h3>3. 🖥️ Diagrama Físico de Arquitectura y Despliegue (Infraestructura OCI ARM)</h3>
+<p>Detalla el dimensionamiento y contención en la máquina virtual ARM Ampere de Oracle Cloud Always Free:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Contenedor / Proceso</th>
+      <th>CPU Quota</th>
+      <th>Límite RAM Docker</th>
+      <th>JVM Heap (MaxRAMPercentage)</th>
+      <th>Rol Operativo</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>nginx-gateway</strong></td><td>0.10 OCPU</td><td>128 MB</td><td>N/A (C)</td><td>Reverse Proxy, SSL y Rate Limit</td></tr>
+    <tr><td><strong>access-service</strong></td><td>0.40 OCPU</td><td>1024 MB</td><td>768 MB (75.0%)</td><td>Gestión de accesos y tokens</td></tr>
+    <tr><td><strong>cv-service</strong></td><td>0.20 OCPU</td><td>768 MB</td><td>512 MB (66.6%)</td><td>Generación de PDFs y marcas de agua</td></tr>
+    <tr><td><strong>search-service</strong></td><td>0.40 OCPU</td><td>1280 MB</td><td>896 MB (70.0%)</td><td>Búsqueda semántica vectorial</td></tr>
+    <tr><td><strong>rabbitmq-broker</strong></td><td>0.20 OCPU</td><td>512 MB</td><td>~256 MB (Erlang)</td><td>Message broker asíncrono durable</td></tr>
+    <tr><td><strong>redis-cache</strong></td><td>0.10 OCPU</td><td>256 MB</td><td>~128 MB (C)</td><td>Caché y control de concurrencia</td></tr>
+    <tr><td><strong>SUBTOTAL CONTENEDORES</strong></td><td><strong>1.40 OCPU</strong></td><td><strong>3968 MB (~3.88 GB)</strong></td><td><strong>2176 MB (~2.13 GB)</strong></td><td><strong>Techo máximo de carga</strong></td></tr>
+    <tr><td><strong>Host OS Linux + Docker</strong></td><td>0.60 OCPU (30%)</td><td>~2048 MB (~2.00 GB)</td><td>N/A</td><td>Kernel Ubuntu 24.04 LTS y daemon</td></tr>
+    <tr><td><strong>TOTAL CAPACIDAD VM</strong></td><td><strong>2.00 OCPU (100%)</strong></td><td><strong>12288 MB (12.00 GB)</strong></td><td><strong>6272 MB (~51% LIBRE)</strong></td><td><strong>Colchón de estabilidad</strong></td></tr>
+  </tbody>
+</table>
+
+<hr/>
+
+<h3>4. 🔌 Diagrama de Arquitectura de Integración (Protocolos y Seguridad)</h3>
+<p>Matriz de comunicación, interfaces, formatos de serialización y autenticación:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Enlace / Interfaz</th>
+      <th>Protocolo</th>
+      <th>Formato / Payload</th>
+      <th>Autenticación / Cifrado</th>
+      <th>Estándar de Contrato</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>Browser &rarr; Nginx</td><td>HTTPS (TLS 1.3)</td><td>JSON / Form-Data</td><td>TLS Certbot Let's Encrypt</td><td>OpenAPI 3.1</td></tr>
+    <tr><td>Browser &rarr; PostgREST</td><td>HTTPS (TLS 1.3)</td><td>JSON</td><td>Bearer JWT (auth.jwt())</td><td>OpenAPI / PostgREST spec</td></tr>
+    <tr><td>Nginx &rarr; Microservicios</td><td>HTTP/1.1 (Red Bridge)</td><td>JSON</td><td>Aislamiento de red hv-network</td><td>RFC 9457 ProblemDetail</td></tr>
+    <tr><td>Access &rarr; RabbitMQ</td><td>AMQP 0-9-1</td><td>JSON UTF-8</td><td>User / Pass en Docker variables</td><td>AccessRequestedEvent.json</td></tr>
+    <tr><td>Access &rarr; DNS</td><td>DNS UDP/TCP :53</td><td>DNS Wire Format</td><td>Consultas recursivas directas</td><td>RFC 1035 (MX Records)</td></tr>
+    <tr><td>Access &rarr; Resend</td><td>HTTPS (TLS 1.3)</td><td>JSON payload</td><td>Bearer API Token</td><td>Resend REST API v1</td></tr>
+    <tr><td>Backend &rarr; Redis</td><td>RESP</td><td>Strings / Hashes</td><td>requirepass protegido</td><td>Namespaces ratelimit:*</td></tr>
+    <tr><td>Backend &rarr; PostgreSQL</td><td>PG Wire (TLS)</td><td>Binary / SQL</td><td>sslmode=require + HikariCP</td><td>Esquemas DDL access y content</td></tr>
+    <tr><td>PostgREST &rarr; PostgreSQL</td><td>PG Engine Internal</td><td>SQL Queries</td><td>RLS policies por grant_id</td><td>Security Invoker Views</td></tr>
+    <tr><td>Backend &rarr; MongoDB</td><td>Mongo Wire (TLS)</td><td>BSON</td><td>TLS 1.3 + SCRAM-SHA-256</td><td>Colección audit_events</td></tr>
+  </tbody>
+</table>
+
+<hr/>
+
+<h3>5. 🔄 Diagrama de Flujo de Arquitectura (Acceso Efímero 48h y RLS)</h3>
+<p>Secuencia de interacción temporal entre el evaluador, el perímetro de entrada, la validación asíncrona, el canje criptográfico y la entrega de datos protegidos:</p>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">text</ac:parameter>
+  <ac:plain-text-body><![CDATA[sequenceDiagram
+    autonumber
+    actor Recruiter as Evaluador / Reclutador
+    participant Web as Frontend Next.js 15
+    participant Nginx as Nginx Reverse Proxy
+    participant AccessSvc as access-service (Java 21)
+    participant Rabbit as RabbitMQ Broker
+    participant Dns as Servidor DNS
+    participant Resend as Resend Email API
+    participant PG as PostgreSQL 17 (Supabase)
+    participant PostgREST as Supabase PostgREST
+    participant Mongo as MongoDB Atlas (Audit)
+    participant CvSvc as cv-service (Java 21)
+
+    Note over Recruiter, AccessSvc: Fase 1: Solicitud Sincrónica
+    Recruiter->>Web: Ingresa correo corporativo y acepta Ley 1581
+    Web->>Nginx: POST /api/v1/access/requests {email}
+    Nginx->>AccessSvc: proxy_pass /api/v1/access/requests
+    AccessSvc->>Rabbit: Publica AccessRequestedEvent
+    AccessSvc-->>Web: 202 Accepted {status: PENDING}
+
+    Note over Rabbit, Resend: Fase 2: Validación DNS Asíncrona
+    Rabbit->>AccessSvc: Consume AccessRequestedEvent
+    AccessSvc->>Dns: Consulta registros MX corporativos
+    AccessSvc->>PG: INSERT INTO access.grants (hash, expires_at = now() + 48h)
+    AccessSvc->>Resend: Envía Magic Link por email
+    AccessSvc->>Mongo: Registra auditoría forense
+
+    Note over Recruiter, PostgREST: Fase 3: Canje y JWT Criptográfico
+    Recruiter->>Web: Clic en Magic Link (?token=raw)
+    Web->>AccessSvc: POST /api/v1/access/claim {token}
+    AccessSvc->>PG: Valida hash SHA-256 y vigencia 48h
+    AccessSvc-->>Web: 200 OK {sessionJwt con claim grant_id}
+
+    Note over Web, PG: Fase 4: Lectura RLS Directa
+    Web->>PostgREST: GET /v_private_experiences (Bearer JWT)
+    PostgREST->>PG: Evalúa RLS: access.is_active_grant()
+    PG-->>Web: Retorna contenido técnico privado
+
+    Note over Recruiter, CvSvc: Fase 5: Descarga CV con Watermark
+    Recruiter->>CvSvc: GET /api/v1/cv/download (Bearer JWT)
+    CvSvc->>CvSvc: PDFBox genera PDF con marca de agua dinámica
+    CvSvc->>Mongo: Audita descarga forense
+    CvSvc-->>Recruiter: Entrega PDF personalizado]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<hr/>
+
+<h3>6. ✍️ Registro de Decisión Humana (Gobernanza)</h3>
+<ul>
+  <li><strong>Decisión Humana:</strong> Aprobación de las 5 vistas de arquitectura para ProyectoHV.</li>
+  <li><strong>Líder Técnico / Autor:</strong> Harold Augusto Rodríguez Martínez.</li>
+  <li><strong>Fecha de Aprobación:</strong> 2026-10-02.</li>
+</ul>
+`;
+
 async function main() {
   console.log('🚀 Iniciando publicación en Confluence Cloud...');
   console.log(`   Sitio: ${siteUrl}`);
@@ -368,7 +646,7 @@ async function main() {
   console.log(`   Espacio HV encontrado (ID: ${spaceId}, Homepage ID: ${homepageId})`);
 
   // 2. Actualizar Homepage
-  console.log('\n[1/4] Actualizando Homepage del espacio HV...');
+  console.log('\n[1/5] Actualizando Homepage del espacio HV...');
   const homeData = await request(`/pages/${homepageId}`);
   await updatePage(
     homepageId,
@@ -379,14 +657,17 @@ async function main() {
   console.log('   ✅ Homepage actualizada con éxito.');
 
   // 3. Crear o actualizar páginas hijas
-  console.log('\n[2/4] Sincronizando Fase 1: Planificación & Costos...');
+  console.log('\n[2/5] Sincronizando Fase 1: Planificación & Costos...');
   await upsertPage(spaceId, homepageId, '01. Planificación & Modelo de Costos', PLAN_BODY);
 
-  console.log('\n[3/4] Sincronizando Fase 2: Arquitectura & Diseño...');
+  console.log('\n[3/5] Sincronizando Fase 2: Arquitectura & Diseño...');
   await upsertPage(spaceId, homepageId, '02. Arquitectura & Diseño del Sistema', DESIGN_BODY);
 
-  console.log('\n[4/4] Sincronizando Registro de ADRs...');
+  console.log('\n[4/5] Sincronizando Registro de ADRs...');
   await upsertPage(spaceId, homepageId, '03. Registro de Decisiones de Arquitectura (ADR Log)', ADR_BODY);
+
+  console.log('\n[5/5] Sincronizando Vistas y Diagramas de Arquitectura...');
+  await upsertPage(spaceId, homepageId, '04. Vistas de Arquitectura & Diagramas de Integración', DIAGRAMS_BODY);
 
   console.log('\n✨ ¡Publicación en Confluence completada con éxito!');
   console.log(`   🔗 Accede a tu espacio en: ${siteUrl}/wiki/spaces/HV`);
@@ -396,3 +677,4 @@ main().catch(err => {
   console.error('\n❌ Error durante la publicación:', err.message);
   process.exit(1);
 });
+

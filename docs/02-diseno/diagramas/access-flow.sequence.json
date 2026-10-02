@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Flujo de Acceso Efímero 48h y RLS — ProyectoHV",
+    "output": "docs/02-diseno/diagramas/access-flow.html",
+    "viewBox": [1280, 920],
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "request-and-validate",
+        "label": "Solicitud y validación asíncrona",
+        "focus": ["user", "web", "nginx", "access", "rabbit"],
+        "note": "Desacopla la verificación y emite el Magic Link transaccional."
+      },
+      {
+        "id": "claim-and-rls",
+        "label": "Canje de token y lectura RLS",
+        "focus": ["user", "web", "nginx", "access", "pg"],
+        "note": "Evaluación del TTL de 48h y filtrado en base de datos mediante auth.jwt()."
+      },
+      {
+        "id": "cv-forensics",
+        "label": "Descarga de CV con marca de agua",
+        "focus": ["user", "web", "cv", "pg", "mongo"],
+        "note": "Estampado forense dinámico con trazabilidad inmutable en MongoDB."
+      }
+    ]
+  },
+  "participants": [
+    { "id": "user", "type": "external", "label": "Evaluador", "sublabel": "Navegador" },
+    { "id": "web", "type": "frontend", "label": "Frontend", "sublabel": "Next.js 15" },
+    { "id": "nginx", "type": "security", "label": "Gateway", "sublabel": "Nginx :443" },
+    { "id": "access", "type": "backend", "label": "AccessSvc", "sublabel": "Java 21" },
+    { "id": "rabbit", "type": "messagebus", "label": "RabbitMQ", "sublabel": "Event Bus" },
+    { "id": "pg", "type": "database", "label": "Supabase", "sublabel": "PG 17 RLS" },
+    { "id": "cv", "type": "backend", "label": "CvSvc", "sublabel": "PDFBox" },
+    { "id": "mongo", "type": "database", "label": "MongoDB", "sublabel": "Audit Log" }
+  ],
+  "segments": [
+    { "from": 140, "to": 320, "label": "1. Solicitud inicial (Sync 202)" },
+    { "from": 335, "to": 485, "label": "2. Validación DNS & Magic Link" },
+    { "from": 495, "to": 680, "label": "3. Canje de Token & Lectura RLS" },
+    { "from": 690, "to": 860, "label": "4. Descarga de CV con Marca de Agua" }
+  ],
+  "messages": [
+    { "id": "req-access", "from": "user", "to": "web", "y": 170, "label": "Ingresa correo corporativo", "variant": "emphasis" },
+    { "id": "post-req", "from": "web", "to": "nginx", "y": 205, "label": "POST /api/v1/access/requests", "variant": "default" },
+    { "id": "pass-req", "from": "nginx", "to": "access", "y": 240, "label": "proxy_pass :8081", "variant": "default" },
+    { "id": "pub-event", "from": "access", "to": "rabbit", "y": 275, "label": "publish AccessRequestedEvent", "variant": "dashed" },
+    { "id": "resp-accepted", "from": "access", "to": "web", "y": 305, "label": "202 Accepted", "variant": "return" },
+
+    { "id": "consume-event", "from": "rabbit", "to": "access", "y": 350, "label": "consume event async", "variant": "dashed" },
+    { "id": "save-grant", "from": "access", "to": "pg", "y": 395, "label": "INSERT access.grants (hash, 48h TTL)", "variant": "emphasis" },
+    { "id": "send-mail", "from": "access", "to": "user", "y": 440, "label": "Envío de Magic Link (Resend API)", "variant": "security" },
+
+    { "id": "click-link", "from": "user", "to": "web", "y": 520, "label": "Clic en Magic Link (?token=...)", "variant": "emphasis" },
+    { "id": "claim-token", "from": "web", "to": "access", "y": 555, "label": "POST /api/v1/access/claim", "variant": "default" },
+    { "id": "verify-grant", "from": "access", "to": "pg", "y": 590, "label": "SELECT grant WHERE token_hash", "variant": "default" },
+    { "id": "issue-jwt", "from": "access", "to": "web", "y": 625, "label": "200 OK { sessionJwt con grant_id }", "variant": "return" },
+    { "id": "query-rls", "from": "web", "to": "pg", "y": 660, "label": "GET /v_private_experiences (Bearer JWT)", "variant": "security" },
+
+    { "id": "click-download", "from": "user", "to": "web", "y": 700, "label": "Clic en 'Descargar CV'", "variant": "default" },
+    { "id": "download-cv", "from": "web", "to": "cv", "y": 735, "label": "GET /api/v1/cv/download", "variant": "default" },
+    { "id": "read-profile", "from": "cv", "to": "pg", "y": 770, "label": "SELECT profile metadata", "variant": "default" },
+    { "id": "log-audit", "from": "cv", "to": "mongo", "y": 805, "label": "append audit_event (IP, timestamp, hash)", "variant": "dashed" },
+    { "id": "stream-pdf", "from": "cv", "to": "user", "y": 835, "label": "200 application/pdf con marca de agua", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "web", "from": 170, "to": 310, "type": "frontend" },
+    { "participant": "access", "from": 240, "to": 310, "type": "backend" },
+    { "participant": "access", "from": 350, "to": 445, "type": "backend" },
+    { "participant": "web", "from": 520, "to": 665, "type": "frontend" },
+    { "participant": "access", "from": 555, "to": 630, "type": "backend" },
+    { "participant": "cv", "from": 735, "to": 840, "type": "backend" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Desacoplamiento Asíncrono",
+      "items": [
+        "El cliente recibe 202 Accepted de inmediato sin esperar latencias externas.",
+        "RabbitMQ absorbe picos de solicitudes y garantiza reintentos ordenados."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Defensa en Base de Datos (RLS)",
+      "items": [
+        "auth.jwt() contiene el grant_id firmado digitalmente por Supabase Auth.",
+        "PostgreSQL descarta automáticamente peticiones cuando expires_at < now()."
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Trazabilidad Forense",
+      "items": [
+        "MongoDB almacena eventos inmutables no modificables desde SQL.",
+        "Apache PDFBox estampa email, IP y hash criptográfico en cada descarga."
+      ]
+    }
+  ]
+}

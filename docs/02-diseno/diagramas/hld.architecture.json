@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ProyectoHV — High-Level Architecture (HLD)",
+    "output": "docs/02-diseno/diagrams/hld.html",
+    "visual_preset": "blueprint",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "public-and-private-path",
+        "label": "Ruta de acceso y autorización",
+        "focus": ["users", "edge", "nginx", "access", "postgres"],
+        "note": "Solicitud de acceso efímero con TTL de 48 horas y evaluación en base de datos."
+      },
+      {
+        "id": "async-and-cache",
+        "label": "Mensajería, caché y validación",
+        "focus": ["access", "rabbitmq", "dns", "redis", "resend"],
+        "note": "Desacoplamiento asíncrono de verificación DNS MX y envío transaccional de Magic Link."
+      },
+      {
+        "id": "forensic-and-search",
+        "label": "Auditoría forense y búsqueda",
+        "focus": ["cv", "search", "postgres", "mongo", "redis"],
+        "note": "Estampado dinámico de marcas de agua y búsqueda vectorial semántica con pgvector."
+      }
+    ]
+  },
+  "components": [
+    { "id": "users", "type": "external", "label": "Evaluadores & Público", "sublabel": "Navegador Web", "pos": [40, 290], "size": [130, 60] },
+    { "id": "edge", "type": "cloud", "label": "Global Edge", "sublabel": "Next.js 15 SSR", "pos": [230, 290], "size": [130, 60], "tag": "Vercel / Netlify" },
+    { "id": "nginx", "type": "security", "label": "Nginx Gateway", "sublabel": "Reverse Proxy :443", "pos": [420, 290], "size": [130, 60], "tag": "DMZ OCI" },
+    
+    { "id": "access", "type": "backend", "label": "access-service", "sublabel": "Java 21 / Spring 3.4", "pos": [620, 160], "size": [140, 62], "tag": "0.40 OCPU / 1GB" },
+    { "id": "cv", "type": "backend", "label": "cv-service", "sublabel": "Watermarking PDF", "pos": [620, 290], "size": [140, 62], "tag": "0.20 OCPU / 768MB" },
+    { "id": "search", "type": "backend", "label": "search-service", "sublabel": "Hybrid Search", "pos": [620, 420], "size": [140, 62], "tag": "0.40 OCPU / 1.25GB" },
+
+    { "id": "rabbitmq", "type": "messagebus", "label": "RabbitMQ", "sublabel": "Broker AMQP :5672", "pos": [830, 60], "size": [130, 60], "tag": "durable queues" },
+    { "id": "redis", "type": "database", "label": "Redis Cache", "sublabel": "Rate limits :6379", "pos": [830, 160], "size": [130, 60], "tag": "in-memory" },
+    { "id": "postgres", "type": "database", "label": "PostgreSQL 17", "sublabel": "Supabase RLS", "pos": [830, 290], "size": [130, 62], "tag": "pgvector" },
+    { "id": "mongo", "type": "database", "label": "MongoDB Atlas", "sublabel": "audit_events M0", "pos": [830, 420], "size": [130, 60], "tag": "append-only" },
+
+    { "id": "dns", "type": "external", "label": "DNS Servers", "sublabel": "MX Verification", "pos": [1030, 60], "size": [130, 60], "tag": "Anti-Spoofing" },
+    { "id": "resend", "type": "cloud", "label": "Resend API", "sublabel": "Magic Link Mailer", "pos": [1030, 160], "size": [130, 60], "tag": "HTTPS REST" }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Oracle Cloud VM Always Free (ARM Ampere 2 OCPU / 12 GB RAM)", "wraps": ["nginx", "access", "cv", "search", "rabbitmq", "redis"], "pad": 18 },
+    { "kind": "security-group", "label": "Red Interna Docker (hv-network aislada)", "wraps": ["access", "cv", "search", "rabbitmq", "redis"], "pad": 12 },
+    { "kind": "region", "label": "Nube Administrada Supabase (ca-central-1)", "wraps": ["postgres"] },
+    { "kind": "region", "label": "MongoDB Atlas Cloud Sandbox (M0 AWS)", "wraps": ["mongo"] }
+  ],
+  "connections": [
+    { "from": "users", "to": "edge", "label": "HTTPS", "variant": "emphasis" },
+    { "from": "edge", "to": "nginx", "label": "API REST", "variant": "emphasis" },
+    { "from": "edge", "to": "postgres", "label": "Direct RLS (JWT)", "variant": "security", "fromSide": "bottom", "toSide": "bottom", "via": [[295, 520], [895, 520]] },
+    { "from": "nginx", "to": "access", "label": ":8081", "variant": "emphasis" },
+    { "from": "nginx", "to": "cv", "label": ":8082" },
+    { "from": "nginx", "to": "search", "label": ":8083" },
+    { "from": "access", "to": "rabbitmq", "label": "publish", "variant": "dashed" },
+    { "from": "rabbitmq", "to": "access", "label": "consume", "variant": "dashed" },
+    { "from": "access", "to": "dns", "label": "MX check" },
+    { "from": "access", "to": "resend", "label": "Magic Link", "variant": "emphasis" },
+    { "from": "access", "to": "redis", "label": "rate limit" },
+    { "from": "search", "to": "redis", "label": "cache" },
+    { "from": "access", "to": "postgres", "label": "save grant" },
+    { "from": "cv", "to": "postgres", "label": "read metadata" },
+    { "from": "search", "to": "postgres", "label": "vector search" },
+    { "from": "access", "to": "mongo", "label": "audit log", "variant": "dashed" },
+    { "from": "cv", "to": "mongo", "label": "audit download", "variant": "dashed" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Frontera Edge", "items": ["Next.js 15 App Router en Vercel/Netlify", "Nginx actúa como único punto de entrada con TLS 1.3 y rate limiting"] },
+    { "dot": "emerald", "title": "Microservicios Hexagonales", "items": ["Java 21 / Spring Boot 3.4 con dominio puro agnóstico", "Límites estrictos de memoria: 51% de holgura libre en VM Oracle"] },
+    { "dot": "rose", "title": "Seguridad STRIDE & RLS", "items": ["Magic Links con hash SHA-256 y TTL de 48 horas", "Políticas RLS en Supabase Postgres vinculadas a auth.jwt()"] }
+  ]
+}
