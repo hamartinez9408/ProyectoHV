@@ -1,6 +1,6 @@
 {
   "$comment": "GENERADO por .agents/skills/hv-career-pipeline/scripts/build-career-data.mjs — no editar a mano. Nivel PÚBLICO, anonimizado por sector.",
-  "generatedAt": "2026-10-02T17:38:21.676Z",
+  "generatedAt": "2026-10-02T17:42:13.633Z",
   "source": "perfil-maestro.md",
   "profile": {
     "fullName": "Harold Augusto Rodríguez Martínez",
@@ -18,6 +18,48 @@
       "endDate": null,
       "isCurrent": true,
       "summaryPublic": "Define arquitectura y patrones base de los proyectos; el equipo construye sobre esa base. Valida código entregado y aprueba Pull Requests. Responsable del onboarding técnico de los proyectos asignados. Realiza entrevistas técnicas, para su equipo y para otros proyectos de la compañía sin líder técnico. Apoya preventa: valida ofertas, compromisos técnicos y riesgos. **Equipo máximo: 12 personas** (dic-2025). Equipo actual: 3 personas. **20 desarrolladores** formados vía onboarding/mentoría. Coordina equipos en **varias ciudades y países**. **Problema que resuelve:** optimizar el tiempo de respuesta de las mesas de **Rol:** **lideré el desarrollo y construí casi todo el producto**, bajo los **Estado:** inició como prueba de concepto en Empresa multinacional lider en manufactura de empaques; hoy en **producción en 3 **Tecnologías:** Next.js (App Router), Supabase (backend como servicio: **Volumen en producción:** **Empresa del sector energetico** — automatizaciones impulsadas con IA. **Entidad bancaria lider** — producto con IA que cubre casi todo el ciclo de **Recursos Humanos (interno)** — automatización de certificados y renovación de",
+      "metrics": [
+        {
+          "achievement": "Reducción del tiempo de respuesta de mesas de servicio con producto de IA para mesas de servicio",
+          "metric": "De 3 horas a <1 hora por caso; reducción >70%",
+          "method": "Producto de IA sobre base de conocimiento"
+        },
+        {
+          "achievement": "Reducción del tiempo de desarrollo",
+          "metric": "-30%",
+          "method": "Uso de IA en el ciclo de desarrollo"
+        },
+        {
+          "achievement": "Aumento de velocidad del equipo",
+          "metric": "De 8 a 12 puntos de historia por sprint; KPI de 40 → 50 puntos por equipo",
+          "method": "Automatización con IA"
+        },
+        {
+          "achievement": "Cobertura de pruebas unitarias",
+          "metric": "Garantizada sobre 90%",
+          "method": "Configuración de herramientas de cobertura"
+        },
+        {
+          "achievement": "Reducción de incidentes en proyecto crítico",
+          "metric": "De 30 a 20 por sprint",
+          "method": "Desarrollo asistido por IA"
+        },
+        {
+          "achievement": "Automatización de pruebas unitarias",
+          "metric": "100% automáticas, +1 hora diaria ahorrada por persona",
+          "method": "Automatización completa y E2E preliminares"
+        },
+        {
+          "achievement": "Reducción de errores reportados por QA",
+          "metric": "—",
+          "method": "Pruebas automatizadas previas a QA"
+        },
+        {
+          "achievement": "Reconocimiento interno por impulsar el uso de IA en la organización",
+          "metric": "—",
+          "method": "Adopción promovida a nivel compañía"
+        }
+      ],
       "technologies": [
         "Next.js",
         "Supabase",
@@ -55,6 +97,7 @@
       "endDate": "2025-02",
       "isCurrent": false,
       "summaryPublic": "Desarrollo de aplicaciones **Java – Spring Boot** con generación de reportes y Desarrollo de servicios **OSB y BPEL** para el bus de integración Oracle de un Documentación de programas, construcción y ejecución de pruebas unitarias, y",
+      "metrics": [],
       "technologies": [
         "Java",
         "Spring Boot",
@@ -77,6 +120,7 @@
       "endDate": "2022-03",
       "isCurrent": false,
       "summaryPublic": "**Modernización de un proyecto SOA** con el OSB de Oracle para un cliente de Encargado de los **despliegues en ambientes no productivos** y del Desarrollo de aplicaciones **Java – Angular con Spring Boot** para un cliente",
+      "metrics": [],
       "technologies": [
         "Java",
         "Spring Boot",
@@ -99,6 +143,7 @@
       "endDate": "2020-09",
       "isCurrent": false,
       "summaryPublic": "Construcción de **soluciones SOA** con **JDeveloper 12C**: servicios atómicos, Construcción de **reglas de negocio** en el motor de reglas de JDeveloper y en El bus de integración cubría los procesos de **créditos hipotecarios y créditos Acompañamiento en **QA y producción**. **Reconocimiento:** se le encargó la construcción del proceso de **créditos de",
+      "metrics": [],
       "technologies": [
         "JDeveloper"
       ],
@@ -108,6 +153,25 @@
         "El bus de integración cubría los procesos de **créditos hipotecarios y créditos",
         "Acompañamiento en **QA y producción**.",
         "**Reconocimiento:** se le encargó la construcción del proceso de **créditos de"
+      ]
+    },
+    {
+      "roleTitle": "Desarrollador Técnico Semi Senior",
+      "companyPublicLabel": "Empresa de servicios de tecnologia del sector publico",
+      "industrySector": "Sector publico",
+      "city": null,
+      "startDate": "2022-03",
+      "endDate": "2022-05",
+      "isCurrent": false,
+      "summaryPublic": "Ya estaba visible en LinkedIn con fechas precisas, así que omitirlo del CV Suma **sector gobierno** al perfil, un tercer sector que amplía el mercado. La estancia corta deja de ser un hueco sin explicar.",
+      "metrics": [],
+      "technologies": [
+        "Angular"
+      ],
+      "achievements": [
+        "Ya estaba visible en LinkedIn con fechas precisas, así que omitirlo del CV",
+        "Suma **sector gobierno** al perfil, un tercer sector que amplía el mercado.",
+        "La estancia corta deja de ser un hueco sin explicar."
       ]
     }
   ],

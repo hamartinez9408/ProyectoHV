@@ -154,6 +154,11 @@ function splitSubsections(lines) {
 }
 
 const text = (lines) => lines.join('\n')
+
+/** Campos ESTRUCTURADOS: texto plano. El énfasis del markdown es de la fuente,
+ *  no del dato — la presentación es responsabilidad del frontend. Los campos de
+ *  prosa (resumen, logros) conservan el énfasis a propósito. */
+const plain = (s) => String(s ?? '').replace(/\*\*/g, '').replace(/`/g, '').trim()
 const bullets = (lines) => lines
   .map((l) => /^\s*[-*]\s+(.*)$/.exec(l))
   .filter(Boolean)
@@ -173,23 +178,79 @@ function parseRange(s) {
 }
 
 // ── 4. Extracción por sección ───────────────────────────────────────────────
+/**
+ * Tabla markdown que sigue a un encabezado en negrita.
+ *
+ * Se ancla al encabezado A PROPÓSITO. En el perfil conviven dos tablas en la
+ * misma entrada: "Logros con métrica" (publicable) y "Volumen en producción"
+ * (nombres de cliente y transacciones por cliente). Una búsqueda genérica de
+ * tablas habría extraído las dos, y la segunda es exactamente lo que el nivel
+ * público no debe llevar.
+ */
+function tableAfter(lines, headingRe) {
+  const rows = []
+  let seen = false
+  for (const l of lines) {
+    if (headingRe.test(l)) { seen = true; continue }
+    if (!seen) continue
+    const t = l.trim()
+    if (!t.startsWith('|')) { if (rows.length) break; continue }
+    const cells = t.replace(/^\||\|$/g, '').split('|').map((s) => s.trim())
+    if (cells.every((c) => /^:?-{2,}:?$/.test(c))) continue
+    if (/^logro$/i.test(cells[0])) continue
+    if (cells.length >= 2 && cells[0]) rows.push(cells)
+  }
+  return rows
+}
+
+/**
+ * Subsección de experiencia SIN numerar. El perfil tiene una así: la entrada
+ * incorporada por decisión explícita del usuario.
+ *
+ * El cargo y las fechas se toman de las líneas que el propio perfil declara
+ * como las del CV ("Cargo usado en el CV", "Fechas usadas"), no de las del
+ * certificado: el perfil ya resolvió esa discrepancia y aquí se respeta.
+ */
+function parseUnnumbered(lines) {
+  const body = text(lines)
+  const role = /Cargo usado en el CV:\s*\*\*(.+?)\*\*/i.exec(body)
+  const company = /^\*\*(.+?)\s*\((.+?)\)\s*—/m.exec(body)
+  if (!role || !company) return null
+  const dates = /Fechas usadas:\s*\*\*(.+?)\*\*/i.exec(body)
+  return {
+    // El perfil cita el cargo entrecomillado porque es el literal del
+    // certificado; las comillas son del énfasis, no del cargo.
+    roleTitle: role[1].trim().replace(/^["'“”«]|["'“”«]$/g, ''),
+    companyReal: company[1].trim(),
+    city: null,
+    range: dates ? parseRange(dates[1]) : null,
+  }
+}
+
 function parseExperiences(lines, anon) {
   const out = []
   const unmapped = []
   for (const sub of splitSubsections(lines)) {
     // `### 3.1 Líder Técnico Pleno — Stefanini Colombia S.A.S. — Bogotá D.C.`
     const head = /^\d+(?:\.\d+)?\s+(.*)$/.exec(sub.title.trim())
-    if (!head) continue
-    const parts = head[1].split(/\s+—\s+/).map((s) => s.trim())
-    if (parts.length < 2) continue
-    const [roleTitle, companyReal, city] = parts
+    let roleTitle, companyReal, city, range = null
+
+    if (head) {
+      const parts = head[1].split(/\s+—\s+/).map((s) => s.trim())
+      if (parts.length < 2) continue
+      ;[roleTitle, companyReal, city] = parts
+      const rangeLine = sub.lines.find((l) => parseRange(l))
+      range = rangeLine ? parseRange(rangeLine) : null
+    } else {
+      const p = parseUnnumbered(sub.lines)
+      if (!p) continue
+      ;({ roleTitle, companyReal, city, range } = p)
+    }
 
     // FAIL CLOSED: un empleador que no está en el mapa saldría con su nombre
     // real en la salida pública. Se acumula y se aborta al final.
     const entry = anon.entryFor(companyReal)
     if (!entry) { unmapped.push(companyReal); continue }
-    const rangeLine = sub.lines.find((l) => parseRange(l))
-    const range = rangeLine ? parseRange(rangeLine) : null
 
     // Se recogen TODAS las viñetas de la entrada, no solo las que siguen a
     // "Alcance del rol": las entradas más cortas (3.2 a 3.4) no usan ese
@@ -214,6 +275,14 @@ function parseExperiences(lines, anon) {
       ...(range || { startDate: null, endDate: null, isCurrent: false }),
       summaryPublic: anon.apply(roleBullets.join(' ')),
       achievements: roleBullets.map((b) => anon.apply(b)),
+      // Logros cuantificados. Van aparte de `achievements` porque tienen forma
+      // propia (logro / métrica / método) y son el activo que §8 señala como
+      // el segundo más fuerte del perfil.
+      metrics: tableAfter(sub.lines, /^\*\*Logros con m[ée]trica/i).map(([achievement, metric, method]) => ({
+        achievement: plain(anon.apply(achievement)),
+        metric: plain(anon.apply(metric)),
+        method: method ? plain(anon.apply(method)) : '',
+      })),
       technologies,
     })
   }
@@ -227,7 +296,7 @@ function parseEducation(lines, anon) {
     const m = /^\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|$/.exec(l)
     if (!m) continue
     if (/^-+$/.test(m[1].trim()) || /t[íi]tulo/i.test(m[1])) continue
-    rows.push({ degree: m[1].trim(), institution: anon.apply(m[2].trim()), date: m[3].trim() })
+    rows.push({ degree: plain(m[1]), institution: plain(anon.apply(m[2])), date: plain(m[3]) })
   }
   return rows.filter((r) => !/bachiller/i.test(r.degree))
 }
@@ -251,7 +320,7 @@ function parseLanguages(lines) {
     const m = /^\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*`?([^|`]+?)`?\s*\|$/.exec(l)
     if (!m) continue
     if (/^-+$/.test(m[1].trim()) || /idioma/i.test(m[1])) continue
-    out.push({ language: m[1].trim(), declaredInCv: m[3].trim() })
+    out.push({ language: plain(m[1]), declaredInCv: plain(m[3]) })
   }
   return out
 }
