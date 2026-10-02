@@ -1,0 +1,198 @@
+{
+  "$comment": "GENERADO por .agents/skills/hv-career-pipeline/scripts/build-career-data.mjs — no editar a mano. Nivel PÚBLICO, anonimizado por sector.",
+  "generatedAt": "2026-10-02T17:38:21.676Z",
+  "source": "perfil-maestro.md",
+  "profile": {
+    "fullName": "Harold Augusto Rodríguez Martínez",
+    "headline": "Líder Técnico | Arquitectura de Integración, Plataformas Cloud y Automatización con IA",
+    "location": "Bogotá D.C., Colombia"
+  },
+  "summary": "**Experiencia total: ~6.8 años** (marzo 2019 → septiembre 2026). Sectores: **banca y telecomunicaciones**. **~1.5 años como Líder Técnico** (desde marzo 2025). **Progresión interna en Empresa multinacional de servicios de tecnologia:** Junior → Pleno → Líder Técnico Pleno. Ingeniero de Software titulado (Universidad Manuela Beltrán, dic-2021) con matrícula profesional. Especialista en **arquitectura de integración** (Oracle SOA Suite: OSB, BPEL, reglas de negocio) y en **plataformas modernas** (Next.js, Supabase/PostgreSQL, Docker). Actualmente lidera la construcción de **producto de IA para mesas de servicio**, producto de IA en producción en 3 clientes.",
+  "experiences": [
+    {
+      "roleTitle": "Líder Técnico Pleno",
+      "companyPublicLabel": "Empresa multinacional de servicios de tecnologia",
+      "industrySector": "Servicios de tecnologia",
+      "city": "Bogotá D.C.",
+      "startDate": "2025-03",
+      "endDate": null,
+      "isCurrent": true,
+      "summaryPublic": "Define arquitectura y patrones base de los proyectos; el equipo construye sobre esa base. Valida código entregado y aprueba Pull Requests. Responsable del onboarding técnico de los proyectos asignados. Realiza entrevistas técnicas, para su equipo y para otros proyectos de la compañía sin líder técnico. Apoya preventa: valida ofertas, compromisos técnicos y riesgos. **Equipo máximo: 12 personas** (dic-2025). Equipo actual: 3 personas. **20 desarrolladores** formados vía onboarding/mentoría. Coordina equipos en **varias ciudades y países**. **Problema que resuelve:** optimizar el tiempo de respuesta de las mesas de **Rol:** **lideré el desarrollo y construí casi todo el producto**, bajo los **Estado:** inició como prueba de concepto en Empresa multinacional lider en manufactura de empaques; hoy en **producción en 3 **Tecnologías:** Next.js (App Router), Supabase (backend como servicio: **Volumen en producción:** **Empresa del sector energetico** — automatizaciones impulsadas con IA. **Entidad bancaria lider** — producto con IA que cubre casi todo el ciclo de **Recursos Humanos (interno)** — automatización de certificados y renovación de",
+      "technologies": [
+        "Next.js",
+        "Supabase",
+        "TypeScript",
+        "Tailwind CSS",
+        "Docker",
+        "RAG",
+        "MCP"
+      ],
+      "achievements": [
+        "Define arquitectura y patrones base de los proyectos; el equipo construye sobre esa base.",
+        "Valida código entregado y aprueba Pull Requests.",
+        "Responsable del onboarding técnico de los proyectos asignados.",
+        "Realiza entrevistas técnicas, para su equipo y para otros proyectos de la compañía sin líder técnico.",
+        "Apoya preventa: valida ofertas, compromisos técnicos y riesgos.",
+        "**Equipo máximo: 12 personas** (dic-2025). Equipo actual: 3 personas.",
+        "**20 desarrolladores** formados vía onboarding/mentoría.",
+        "Coordina equipos en **varias ciudades y países**.",
+        "**Problema que resuelve:** optimizar el tiempo de respuesta de las mesas de",
+        "**Rol:** **lideré el desarrollo y construí casi todo el producto**, bajo los",
+        "**Estado:** inició como prueba de concepto en Empresa multinacional lider en manufactura de empaques; hoy en **producción en 3",
+        "**Tecnologías:** Next.js (App Router), Supabase (backend como servicio:",
+        "**Volumen en producción:**",
+        "**Empresa del sector energetico** — automatizaciones impulsadas con IA.",
+        "**Entidad bancaria lider** — producto con IA que cubre casi todo el ciclo de",
+        "**Recursos Humanos (interno)** — automatización de certificados y renovación de"
+      ]
+    },
+    {
+      "roleTitle": "Desarrollador Pleno",
+      "companyPublicLabel": "Empresa multinacional de servicios de tecnologia",
+      "industrySector": "Servicios de tecnologia",
+      "city": "Bogotá D.C.",
+      "startDate": "2022-05",
+      "endDate": "2025-02",
+      "isCurrent": false,
+      "summaryPublic": "Desarrollo de aplicaciones **Java – Spring Boot** con generación de reportes y Desarrollo de servicios **OSB y BPEL** para el bus de integración Oracle de un Documentación de programas, construcción y ejecución de pruebas unitarias, y",
+      "technologies": [
+        "Java",
+        "Spring Boot",
+        "Angular",
+        "OSB",
+        "BPEL"
+      ],
+      "achievements": [
+        "Desarrollo de aplicaciones **Java – Spring Boot** con generación de reportes y",
+        "Desarrollo de servicios **OSB y BPEL** para el bus de integración Oracle de un",
+        "Documentación de programas, construcción y ejecución de pruebas unitarias, y"
+      ]
+    },
+    {
+      "roleTitle": "Desarrollador Junior",
+      "companyPublicLabel": "Empresa multinacional de servicios de tecnologia",
+      "industrySector": "Servicios de tecnologia",
+      "city": "Bogotá D.C.",
+      "startDate": "2021-03",
+      "endDate": "2022-03",
+      "isCurrent": false,
+      "summaryPublic": "**Modernización de un proyecto SOA** con el OSB de Oracle para un cliente de Encargado de los **despliegues en ambientes no productivos** y del Desarrollo de aplicaciones **Java – Angular con Spring Boot** para un cliente",
+      "technologies": [
+        "Java",
+        "Spring Boot",
+        "Angular",
+        "OSB",
+        "BPEL"
+      ],
+      "achievements": [
+        "**Modernización de un proyecto SOA** con el OSB de Oracle para un cliente de",
+        "Encargado de los **despliegues en ambientes no productivos** y del",
+        "Desarrollo de aplicaciones **Java – Angular con Spring Boot** para un cliente"
+      ]
+    },
+    {
+      "roleTitle": "Desarrollador de Software",
+      "companyPublicLabel": "Empresa colombiana de servicios de tecnologia",
+      "industrySector": "Servicios de tecnologia",
+      "city": "Bogotá D.C.",
+      "startDate": "2019-03",
+      "endDate": "2020-09",
+      "isCurrent": false,
+      "summaryPublic": "Construcción de **soluciones SOA** con **JDeveloper 12C**: servicios atómicos, Construcción de **reglas de negocio** en el motor de reglas de JDeveloper y en El bus de integración cubría los procesos de **créditos hipotecarios y créditos Acompañamiento en **QA y producción**. **Reconocimiento:** se le encargó la construcción del proceso de **créditos de",
+      "technologies": [
+        "JDeveloper"
+      ],
+      "achievements": [
+        "Construcción de **soluciones SOA** con **JDeveloper 12C**: servicios atómicos,",
+        "Construcción de **reglas de negocio** en el motor de reglas de JDeveloper y en",
+        "El bus de integración cubría los procesos de **créditos hipotecarios y créditos",
+        "Acompañamiento en **QA y producción**.",
+        "**Reconocimiento:** se le encargó la construcción del proceso de **créditos de"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "degree": "Ingeniería de Software",
+      "institution": "Universidad Manuela Beltrán — UMB",
+      "date": "Diciembre 2021"
+    }
+  ],
+  "skillGroups": [
+    {
+      "group": "Integración y backend",
+      "items": [
+        "Java",
+        "Spring Boot",
+        "**Microservicios**",
+        "Hibernate",
+        "JPA",
+        "**APIs REST**",
+        "**RabbitMQ**",
+        "Oracle SOA Suite (OSB, BPEL)",
+        "Oracle PL/SQL",
+        "Reglas de negocio",
+        "Servicios atómicos y orquestación",
+        "API Management (Gravitee, WSO2)",
+        "WebLogic",
+        "JDeveloper"
+      ]
+    },
+    {
+      "group": "Plataformas modernas y datos",
+      "items": [
+        "Next.js (App Router)",
+        "React 19",
+        "Angular",
+        "TypeScript",
+        "Tailwind CSS",
+        "Supabase (Auth, RLS, Realtime)",
+        "PostgreSQL",
+        "Oracle",
+        "**SQL Server**",
+        "**MySQL**",
+        "**MongoDB**",
+        "**Firebase**",
+        "Edge Functions (Supabase)",
+        "Docker"
+      ]
+    },
+    {
+      "group": "IA aplicada",
+      "items": [
+        "Agentes LLM y orquestación",
+        "RAG (embeddings, búsqueda vectorial)",
+        "Model Context Protocol (MCP)",
+        "**Prompt Engineering**"
+      ]
+    },
+    {
+      "group": "Gobierno técnico y DevOps",
+      "items": [
+        "Git",
+        "Azure DevOps",
+        "CI/CD",
+        "Linux",
+        "Arquitectura de software y patrones",
+        "Modelado de diseño detallado",
+        "Medición de tamaño funcional",
+        "Gestión y mitigación de riesgos técnicos",
+        "Asignación y revisión de actividades",
+        "Liderazgo de equipos",
+        "Entrevistas técnicas",
+        "Onboarding técnico y mentoría",
+        "Aseguramiento de calidad"
+      ]
+    }
+  ],
+  "languages": [
+    {
+      "language": "Español",
+      "declaredInCv": "Nativo"
+    },
+    {
+      "language": "Inglés",
+      "declaredInCv": "Inglés — Lectura técnica de documentación (B1)"
+    }
+  ]
+}

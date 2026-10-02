@@ -17,7 +17,9 @@
     "validate:content": "node .agents/skills/hv-career-pipeline/scripts/validate-career-data.mjs",
     "verify:mcp": "node tools/verify-mcp.mjs",
     "verify:mcp:probe": "node tools/verify-mcp.mjs --probe",
-    "publish:confluence": "node tools/publish-confluence.mjs"
+    "publish:confluence": "node tools/publish-confluence.mjs",
+    "build:content": "node .agents/skills/hv-career-pipeline/scripts/build-career-data.mjs",
+    "build:content:dry": "node .agents/skills/hv-career-pipeline/scripts/build-career-data.mjs --dry-run"
   },
   "repository": {
     "type": "git",
