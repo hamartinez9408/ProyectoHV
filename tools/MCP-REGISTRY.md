@@ -73,7 +73,7 @@ Antigravity abra, **incluido este**. Allí siguen conectados:
 | `mcpsupabaselegacy` | 🔴 `project_ref` que **coincide con el corpus de backups previos al aislamiento** | solo lectura | Consultar producción de un cliente desde una sesión de ProyectoHV |
 | `mcpsupabasetarget` | ⚠️ **sin identificar** — no es corporativo ni es `HVpersonal` | **ESCRITURA** | Migraciones y borrado sobre un proyecto que nadie ha clasificado |
 | `azure-devops` | 🔴 organización del empleador | — | Exponer la búsqueda de empleo ante Stefanini |
-| `ssh-vps-contabo` | 🔴 por clasificar | — | — |
+| `ssh-vps-contabo` | 🔴 **root por SSH a un VPS**, con la contraseña en **texto plano** y derivada del nombre del empleador | — | Acceso root a infraestructura del empleador |
 
 **Cómo se confirmó:** patrón estricto (`project_ref=<ref>` o `db.<ref>.supabase.co`)
 contra los refs de los 3 backups **anteriores** al aislamiento.
@@ -88,13 +88,36 @@ contra los refs de los 3 backups **anteriores** al aislamiento.
 > repetirlos sería la filtración que la clasificación pretende evitar. Se
 > identifican por índice.
 
-**Estado:** reportado, **no corregido**. La configuración de Antigravity no es
-artefacto de ZCode y puede ser necesaria para el workspace corporativo; separarla
-es decisión de Harold. Hasta entonces, la garantía de máquina de la Regla #0 está
-**incompleta**, y eso debe saberse.
+### ✅ RESUELTO 2026-10-02 — separación ejecutada
 
-**Lo que sí quedó verificado:** `hv-supabase` está correctamente aislado en las
-**dos** configuraciones de Antigravity — proyecto propio y solo lectura.
+Estado final **medido**: los 9 servidores vivos de ambos configs de Antigravity no
+incluyen ninguno de los 11 prohibidos, y todo servidor Supabase es de solo lectura.
+
+| Servidor | Acción | Dónde quedó |
+|---|---|---|
+| `azure-devops` | retirado por Antigravity | respaldo `mcp_config.backup-20260930.json` |
+| `mcpsupabaselegacy` | retirado por Antigravity | respaldo `mcp_config.backup-20260930.json` |
+| `mcpsupabasetarget` | se le añadió `&read_only=true` | vivo, solo lectura |
+| `ssh-vps-contabo` | 🔴 **retirado por ZCode** | `mcp_config.REMOVED-CORPORATIVO-*.json` |
+
+**Ninguna credencial se perdió** — verificado entrada por entrada contra el
+respaldo: el fragmento retirado es **byte-idéntico** al original, y ninguna otra
+entrada resultó alterada.
+
+> ⚠️ **`ssh-vps-contabo` merece atención aparte.** Es acceso **root por SSH** a un
+> VPS, con la contraseña **en texto plano** dentro del archivo de configuración, y
+> esa contraseña está derivada del nombre del empleador. Son dos problemas
+> distintos: el aislamiento (resuelto) y la higiene de la credencial (**no**
+> resuelto). **Recomendación: rotar esa contraseña y sustituirla por clave SSH.**
+> Una contraseña de root escrita en un archivo ya no es un secreto.
+
+**Restauración:** el fragmento `mcp_config.REMOVED-CORPORATIVO-*.json` contiene la
+entrada completa. Debe reinsertarse **solo** en el config del workspace
+corporativo — nunca en el de usuario, que carga en todos los workspaces.
+
+**Herramientas que lo vigilan:** `bootstrap.mjs`, `verify-mcp.mjs` y
+`verify-context.mjs` fallan si un servidor prohibido reaparece en cualquier config
+de agente. Ya no depende de que alguien recuerde la regla.
 
 ---
 

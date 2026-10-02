@@ -97,9 +97,9 @@
     "names": [
       "azure-devops", "supabase", "postgres-origen", "postgres-destino",
       "sophiex-mcp", "sophiex-ragflow", "sophiex-itsm-sdp",
-      "sophiex-zabbix", "sophiex-ollama", "mcpsupabaselegacy"
+      "sophiex-zabbix", "sophiex-ollama", "mcpsupabaselegacy", "ssh-vps-contabo"
     ],
-    "reason": "Apuntan a infraestructura del empleador o de sus clientes. Ver AGENTS.md Regla #0. `mcpsupabaselegacy` se añadió el 2026-09-30: su project_ref coincide con el corpus de backups previos al aislamiento."
+    "reason": "Apuntan a infraestructura del empleador o de sus clientes. Ver AGENTS.md Regla #0. `mcpsupabaselegacy` (2026-09-30): su project_ref coincide con el corpus de backups previos al aislamiento. `ssh-vps-contabo` (2026-10-02): acceso root por SSH a un VPS con una credencial derivada del nombre del empleador — retirado de la config de Antigravity, con fragmento de restauracion."
   },
   "constraints": {
     "node": ">=20",
