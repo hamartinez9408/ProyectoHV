@@ -1,0 +1,44 @@
+services:
+  sonarqube:
+    image: sonarqube:community
+    container_name: sonarqube-proyectohv
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    networks:
+      - sonar-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/api/system/status || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+
+  sonar-scanner:
+    image: sonarsource/sonar-scanner-cli:latest
+    profiles:
+      - scanner
+    networks:
+      - sonar-net
+    volumes:
+      - ../..:/usr/src
+    environment:
+      - SONAR_HOST_URL=http://sonarqube:9000
+
+volumes:
+  sonarqube_data:
+    name: proyectohv_sonarqube_data
+  sonarqube_extensions:
+    name: proyectohv_sonarqube_extensions
+  sonarqube_logs:
+    name: proyectohv_sonarqube_logs
+
+networks:
+  sonar-net:
+    name: proyectohv_sonar_net

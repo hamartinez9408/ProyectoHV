@@ -226,6 +226,17 @@ Código → [Guard] → tsc → ESLint → Unit → API → E2E → SonarQube �
 Los gates **bloquean**, no informan. Ver `docs/01-planificacion/` para la
 estrategia DevOps completa y `pipelines/` para la implementación.
 
+## 🌿 Estrategia de Ramas y Concurrencia (Multi-Agente e IA)
+
+- **3 ramas base protegidas:** `desarrollo` (integración), `pruebas` (QA/staging), `main` (producción).
+- **Prohibido el push directo:** Ningún colaborador humano ni agente de IA comitea o sube cambios directamente a `desarrollo`, `pruebas` ni `main`.
+- **Aprobación mandatoria de PRs:**
+  - `desarrollo`: Al menos 1 aprobación técnica (Tech Lead o agente auditor).
+  - `pruebas`: Aprobación formal de Release / QA para homologación.
+  - `main`: Aprobación y firma exclusiva de Harold (Tech Lead).
+- **Disparo de SonarQube:** Se activa de forma automática e incondicional al emitirse una aprobación de PR hacia `desarrollo`. El Quality Gate bloquea el merge si se detectan violaciones de cobertura (<75%), duplicación (>3%), bugs o code smells.
+- Ver detalle completo en [`docs/02-diseno/09-estrategia-ramas-flujo-trabajo.md`](docs/02-diseno/09-estrategia-ramas-flujo-trabajo.md) y [`ADR-007`](docs/02-diseno/adr/ADR-007-estrategia-ramas-aprobacion-sonar.md).
+
 ---
 
 ## 🤝 Trabajo conjunto con Antigravity

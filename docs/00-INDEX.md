@@ -46,7 +46,7 @@
 | **Integra** | `hv-atlassian` · `magicuidesign` · `context7` · skill `archify` |
 | **Cierra cuando** | **Modelo de amenazas del flujo de acceso 48 h** · ADRs escritos · diagramas renderizados |
 
-📄 [`01-arquitectura-c4.md`](02-diseno/01-arquitectura-c4.md) · [`02-modelo-datos.md`](02-diseno/02-modelo-datos.md) · [`03-modelo-amenazas-stride.md`](02-diseno/03-modelo-amenazas-stride.md) · [`04-contratos-api.md`](02-diseno/04-contratos-api.md) · [`05-revision-fase-2.md`](02-diseno/05-revision-fase-2.md) · [`06-revision-independiente-fase-2.md`](02-diseno/06-revision-independiente-fase-2.md) · [ADRs](02-diseno/adr/)
+📄 [`01-arquitectura-c4.md`](02-diseno/01-arquitectura-c4.md) · [`02-modelo-datos.md`](02-diseno/02-modelo-datos.md) · [`03-modelo-amenazas-stride.md`](02-diseno/03-modelo-amenazas-stride.md) · [`04-contratos-api.md`](02-diseno/04-contratos-api.md) · [`05-revision-fase-2.md`](02-diseno/05-revision-fase-2.md) · [`06-revision-independiente-fase-2.md`](02-diseno/06-revision-independiente-fase-2.md) · [`09-estrategia-ramas-flujo-trabajo.md`](02-diseno/09-estrategia-ramas-flujo-trabajo.md) · [ADRs](02-diseno/adr/)
 
 ## Fase 3 · Implementación
 
@@ -59,7 +59,7 @@
 | **Integra** | `hv-github` · `docker` · `hv-supabase` · `context7` |
 | **Cierra cuando** | `tsc` limpio · ESLint limpio · **guard de cumplimiento en verde** · gates de CI bloqueantes |
 
-📄 `entregas.md` · `log-decisiones.md`  ·  `pipelines/`
+📄 [`01-guias-desarrollo-web.md`](03-implementacion/01-guias-desarrollo-web.md) · [`ONBOARDING.md`](03-implementacion/ONBOARDING.md) · `pipelines/`
 
 ## Fase 4 · Pruebas
 

@@ -1,0 +1,105 @@
+# =====================================================================
+# ProyectoHV — Disparo de SonarQube ante Aprobación de PR en desarrollo
+# =====================================================================
+#
+# PROPÓSITO:
+# Garantiza que cuando un Pull Request hacia la rama `desarrollo` recibe
+# una aprobación formal (`pull_request_review` con state: 'approved'),
+# se ejecute automáticamente el escaneo estático de SonarQube y se evalúe
+# la compuerta de calidad (Quality Gate).
+#
+# Si el Quality Gate falla, el estado del check en GitHub pasa a 'failure',
+# bloqueando la posibilidad de fusionar el código a `desarrollo`.
+#
+# También responde a cambios sincronizados en PRs hacia `desarrollo`,
+# pushes a `desarrollo` y ejecuciones manuales (workflow_dispatch).
+# =====================================================================
+
+name: sonar-pr-approval
+
+on:
+  pull_request_review:
+    types: [submitted]
+  pull_request:
+    branches: [desarrollo]
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [desarrollo]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+
+concurrency:
+  group: sonar-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sonar-gate:
+    name: SonarQube Quality Gate
+    # Condición de ejecución:
+    # 1. PR Review enviado y aprobado hacia la rama 'desarrollo'
+    # 2. Apertura/sincronización de PR hacia 'desarrollo'
+    # 3. Push directo/merge en 'desarrollo'
+    # 4. Despacho manual por workflow_dispatch
+    if: >
+      (github.event_name == 'pull_request_review' &&
+       github.event.review.state == 'approved' &&
+       github.event.pull_request.base.ref == 'desarrollo') ||
+      (github.event_name == 'pull_request' && github.base_ref == 'desarrollo') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/desarrollo') ||
+      (github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout del código (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: 'package-lock.json'
+
+      - name: Instalar dependencias raíz
+        run: npm ci
+
+      - name: Validar y generar cobertura de pruebas (si existen)
+        run: |
+          if [ -d "web" ] && [ -f "web/package.json" ]; then
+            cd web
+            npm ci
+            if grep -q '"test"' package.json; then
+              echo "📦 Ejecutando suite de pruebas en web/..."
+              npm test -- --coverage
+            else
+              echo "ℹ️ [INFO] Suite de pruebas unitarias aún no configurada en web/ (planificada para Slice 4)."
+            fi
+            cd ..
+          fi
+
+      - name: Verificar configuración de Sonar
+        run: |
+          if [ -z "${{ secrets.SONAR_TOKEN }}" ]; then
+            echo "⚠️ [CONFIG] Secreto SONAR_TOKEN no encontrado en GitHub Secrets."
+            echo "   El análisis estático en la nube requiere SONAR_TOKEN configurado en el repositorio remoto."
+            exit 1
+          fi
+
+      - name: Ejecutar SonarQube / SonarCloud Scan
+        uses: sonarsource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
+        with:
+          args: >
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION || 'hamartinez9408' }}
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY || 'hamartinez9408_ProyectoHV' }}
+            -Dsonar.projectName=ProyectoHV
+            -Dsonar.qualitygate.wait=true

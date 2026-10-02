@@ -26,7 +26,8 @@ Al igual que todo el proyecto, este paquete de diseño **es su propio exhibit**:
 | [`02-modelo-datos.md`](02-modelo-datos.md) | Esquemas PostgreSQL (`access`, `content`), políticas RLS, MongoDB y Redis | 🟢 Completo |
 | [`03-modelo-amenazas-stride.md`](03-modelo-amenazas-stride.md) | Análisis STRIDE exhaustivo para el flujo Magic Link 48h, mitigaciones y controles | 🟢 Completo |
 | [`04-contratos-api.md`](04-contratos-api.md) | Especificaciones OpenAPI 3.1, endpoints REST y RFC 9457 `ProblemDetail` | 🟢 Completo |
-| [Catálogo de ADRs](adr/) | Decisiones Arquitectónicas Registradas (ADR-001 a ADR-006) | 🟢 Completo |
+| [`09-estrategia-ramas-flujo-trabajo.md`](09-estrategia-ramas-flujo-trabajo.md) | Estrategia de 3 ramas (`desarrollo`, `pruebas`, `main`), concurrencia multi-agente/humana y Quality Gate SonarQube | 🟢 Completo |
+| [Catálogo de ADRs](adr/) | Decisiones Arquitectónicas Registradas (ADR-001 a ADR-007) | 🟢 Completo |
 
 ---
 
@@ -40,6 +41,8 @@ Las decisiones estructurales clave del proyecto se encuentran versionadas en [`a
 4. **[ADR-004](adr/ADR-004-busqueda-hibrida-pgvector-mongodb.md):** Búsqueda semántica híbrida con pgvector y desacoplamiento de auditoría en MongoDB Atlas.
 5. **[ADR-005](adr/ADR-005-marca-agua-dinamica-pdf.md):** Generación y estamping forense de marca de agua dinámica en exportación de CV.
 6. **[ADR-006](adr/ADR-006-estandar-errores-rfc9457.md):** Estandarización de errores HTTP en APIs mediante RFC 9457 ProblemDetail.
+7. **[ADR-007](adr/ADR-007-estrategia-ramas-aprobacion-sonar.md):** Modelo de Tres Ramas Protegidas (`desarrollo`, `pruebas`, `main`) con Aprobación Mandatoria de PRs y Disparo Automático de SonarQube.
+8. **[ADR-008](adr/ADR-008-estrategia-multi-ci-jenkinsfile-enterprise.md):** Estrategia Multi-CI (GitHub Actions + Jenkinsfile Enterprise como Exhibit de Ingeniería).
 
 ---
 
@@ -49,7 +52,8 @@ Para autorizar el inicio de la Fase 3 (Implementación), este paquete debe satis
 
 - [x] **Límites de Clean Architecture respetados:** Dominio Java libre de dependencias a frameworks y DB.
 - [x] **Auditoría STRIDE 6/6 mitigada:** Ninguna amenaza en rojo; control de 48 h independiente de la UI.
-- [x] **ADRs estandarizados:** 6 ADRs con 4 campos de decisión humana y alternativas descartadas.
+- [x] **ADRs estandarizados:** 7 ADRs con 4 campos de decisión humana y alternativas descartadas.
 - [x] **Contratos OpenAPI con RFC 9457:** Errores consistentes con ProblemDetail para todos los servicios.
 - [x] **Modelado de Persistencia Completo:** DDL SQL con RLS estricto y cuotas de memoria/CPU verificadas.
+- [x] **Estrategia de Ramas y Quality Gate SonarQube:** 3 ramas base con aprobación obligatoria y disparo de Sonar al aprobar PR en `desarrollo`.
 - [ ] **Validación Humana de Harold:** Firma y aprobación para iniciar codificación.

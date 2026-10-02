@@ -14,6 +14,7 @@
 | [`03-estrategia-devops.md`](03-estrategia-devops.md) | Los 4 pipelines, gates bloqueantes, métricas DORA, entornos y secretos | ✅ Completo |
 | [`04-especificacion-requisitos.md`](04-especificacion-requisitos.md) | Requisitos funcionales (RF) y no funcionales (RNF); trazabilidad de componentes | ✅ Completo |
 | [`05-roadmap.md`](05-roadmap.md) | Roadmap por rebanadas verticales (Slices 0 a 5) y criterios DoD | ✅ Completo |
+| [`07-backlog-jira.md`](07-backlog-jira.md) | Backlog completo en Jira: 5 Épicas, 14 Historias (INVEST/BDD) y 37 Subtareas | ✅ Sincronizado |
 
 Los **criterios de aceptación** y las historias de usuario se derivan en
 [`../03-implementacion/`](../03-implementacion/).

@@ -1,0 +1,53 @@
+# =============================================================================
+# ProyectoHV — Stack de Contenedores en Oracle Cloud VM (Always Free)
+# =============================================================================
+# Dimensionamiento de Memoria: Techo máximo 3.88 GB sobre VM de 12 GB RAM
+# Red aislada interna hv-network sin exposición de bases de datos
+# =============================================================================
+
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: proyectohv-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/certs:/etc/letsencrypt:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 128M
+    networks:
+      - hv-network
+
+  access-service:
+    image: ${IMAGE_ACCESS_SERVICE:-ghcr.io/hamartinez9408/access-service:latest}
+    container_name: proyectohv-access-service
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - JAVA_TOOL_OPTIONS=-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
+    deploy:
+      resources:
+        limits:
+          cpus: '0.4'
+          memory: 1024M
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+    networks:
+      - hv-network
+
+networks:
+  hv-network:
+    name: proyectohv_network
+    driver: bridge

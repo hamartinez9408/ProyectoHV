@@ -1,0 +1,29 @@
+services:
+  jenkins:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: proyectohv-jenkins
+    restart: unless-stopped
+    ports:
+      - "8088:8080"
+      - "50000:50000"
+    environment:
+      - TZ=America/Bogota
+      - JENKINS_OPTS=--httpPort=8080
+    volumes:
+      - jenkins_data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 2048M
+        reservations:
+          memory: 1024M
+
+volumes:
+  jenkins_data:
+    name: proyectohv_jenkins_data

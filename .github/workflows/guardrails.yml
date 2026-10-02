@@ -19,9 +19,9 @@ name: guardrails
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, pruebas, desarrollo]
   push:
-    branches: [main]
+    branches: [main, pruebas, desarrollo]
   workflow_dispatch:
 
 # Permisos mínimos: este workflow solo LEE.

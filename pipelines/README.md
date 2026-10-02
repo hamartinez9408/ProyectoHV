@@ -12,6 +12,7 @@
 | Pipeline | Definición | Workflow | Estado |
 |---|---|---|---|
 | **Capa 4 · Guardrails** | este directorio | `.github/workflows/guardrails.yml` | ✅ **Implementado** |
+| **SonarQube Quality Gate** | `pipelines/checks/sonar-gate.mjs` | `.github/workflows/sonar-pr-approval.yml` | ✅ **Implementado** |
 | A · Frontend (Next.js → Netlify) | `docs/01-planificacion/03-estrategia-devops.md` | — | ⏸️ Bloqueado |
 | B · Microservicios (Java → VM Oracle) | idem | — | ⏸️ Bloqueado |
 | C · Migraciones Supabase | idem | — | ⏸️ Bloqueado |
@@ -76,22 +77,24 @@ node .agents/skills/hv-guardrails/scripts/run-guardrails.mjs --all --require-lis
 merge es una regla de protección de rama — y eso es una configuración de GitHub,
 no un archivo del repositorio.
 
-### Checklist de activación
+### Checklist de activación de protección de ramas (3 niveles)
 
-- [ ] **Crear el repositorio remoto** y hacer `git push`
+- [ ] **Crear el repositorio remoto** y hacer `git push` de las 3 ramas (`main`, `pruebas`, `desarrollo`).
 - [ ] **Definir los secrets** en *Settings → Secrets and variables → Actions*:
-      `HV_PROHIBITED_CLIENTS` · `HV_PROHIBITED_IDENTIFIERS`
-      *(los mismos valores que `.agents/rules/private/*.txt` en local)*
-- [ ] **Protección de rama** en *Settings → Branches → `main`*:
+      `HV_PROHIBITED_CLIENTS` · `HV_PROHIBITED_IDENTIFIERS` · `SONAR_TOKEN` · `SONAR_HOST_URL`
+- [ ] **Protección de rama `desarrollo`**:
       - Require a pull request before merging
-      - **Require status checks to pass** → seleccionar los 3 jobs
-      - Require branches to be up to date before merging
-- [ ] **Verificar que bloquea**: abrir un PR que introduzca un dato prohibido y
-      confirmar que el merge queda deshabilitado
-
-> ⚠️ Sin el último paso, la Capa 4 está **escrita pero no probada**. Es la misma
-> distinción que separa "documentado" de "implementado" — la que este proyecto
-> se comprometió a no difuminar.
+      - Require 1 approval before merging
+      - **Require status checks to pass** → `SonarQube Quality Gate` + `guardrails`
+- [ ] **Protección de rama `pruebas`**:
+      - Require a pull request before merging
+      - Require approval before merging (QA / Lead)
+      - **Require status checks to pass** → `guardrails`
+- [ ] **Protección de rama `main`**:
+      - Require a pull request before merging
+      - Require approval before merging (exclusivo Harold)
+      - **Require status checks to pass** → `guardrails` + checks de CD
+- [ ] **Verificar que bloquea**: abrir un PR hacia `desarrollo` y validar que el merge queda bloqueado hasta que SonarQube evalúe el Quality Gate en verde.
 
 ---
 
@@ -104,6 +107,10 @@ GitHub Actions Secrets.
 |---|---|---|
 | `HV_PROHIBITED_CLIENTS` | Nombres de clientes a bloquear | **El pipeline falla** (`--require-lists`) |
 | `HV_PROHIBITED_IDENTIFIERS` | Datos personales a bloquear | idem |
+| `SONAR_TOKEN` | Token de SonarCloud para CI | **El workflow falla** con mensaje explicativo |
+| `SONAR_HOST_URL` | URL del servidor Sonar (opcional en CI) | Toma por defecto `https://sonarcloud.io` |
+| `SONAR_ORGANIZATION` | Organización en SonarCloud (opcional) | Toma por defecto `hamartinez9408` |
+| `SONAR_PROJECT_KEY` | Clave de proyecto en SonarCloud (opcional) | Toma por defecto `hamartinez9408_ProyectoHV` |
 
 Formato: valores separados por **coma o salto de línea**, igual que en los
 archivos locales.

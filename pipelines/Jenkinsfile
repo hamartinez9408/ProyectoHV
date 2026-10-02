@@ -1,0 +1,160 @@
+// =============================================================================
+// ProyectoHV — Enterprise Declarative Pipeline (Jenkins)
+// =============================================================================
+// Decisión Humana (Harold Rodríguez):
+// Implementación de pipeline declarativo enterprise con compuertas bloqueantes,
+// validación estática de seguridad (Regla #0), SonarQube Quality Gate,
+// empaquetado seguro en Docker multi-etapa y plan de rollback automatizado real.
+//
+// Relacionado: ADR-008 (Estrategia Multi-CI), ADR-007 (Estrategia de Ramas)
+// =============================================================================
+
+pipeline {
+    agent any
+
+    options {
+        timeout(time: 20, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '15', artifactNumToKeepStr: '5'))
+        disableConcurrentBuilds()
+        ansiColor('xterm')
+    }
+
+    environment {
+        PROJECT_KEY        = 'proyectohv'
+        SONAR_HOST_URL     = 'http://localhost:9000'
+        REGISTRY_HOST      = 'ghcr.io'
+        CONTAINER_IMAGE    = 'ghcr.io/hamartinez9408/access-service'
+        HEALTH_ENDPOINT    = 'http://localhost:8081/actuator/health'
+    }
+
+    stages {
+        stage('Gate 0: Guardrails Deterministas de Confidencialidad') {
+            steps {
+                echo '🛡️ [Gate 0] Auditando código contra Regla #0 (PII y Clientes)...'
+                sh 'node .agents/skills/hv-guardrails/scripts/run-guardrails.mjs --all'
+            }
+        }
+
+        stage('Gate 1: Compilación y Verificación de Tipos') {
+            parallel {
+                stage('Compilación Java 21 (Microservicios)') {
+                    steps {
+                        script {
+                            if (fileExists('services/access-service/pom.xml')) {
+                                echo '☕ Compilando microservicios Java 21...'
+                                dir('services/access-service') {
+                                    sh './mvnw clean compile -B -DskipTests'
+                                }
+                            } else {
+                                echo '☕ [INFO] services/access-service aún no implementado (Slice 2). Etapa completada por diseño.'
+                            }
+                        }
+                    }
+                }
+                stage('Compilación Frontend Next.js') {
+                    steps {
+                        echo '💻 Verificando tipos TypeScript en Next.js...'
+                        dir('web') {
+                            sh 'npm ci'
+                            sh 'npx tsc --noEmit'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Gate 2: Pruebas Unitarias e Integración (Testcontainers)') {
+            steps {
+                script {
+                    if (fileExists('services/access-service/pom.xml')) {
+                        echo '🧪 Ejecutando suite de pruebas unitarias y de integración con Testcontainers...'
+                        dir('services/access-service') {
+                            sh './mvnw verify -B'
+                        }
+                    } else {
+                        echo '🧪 [INFO] Suite de pruebas backend pendiente de desarrollo en Slice 2 y Slice 4. Omitiendo.'
+                    }
+                }
+            }
+            post {
+                always {
+                    script {
+                        if (fileExists('services/access-service/target/surefire-reports')) {
+                            junit allowEmptyResults: true, testResults: 'services/**/target/surefire-reports/*.xml'
+                            jacoco execPattern: '**/target/jacoco.exec', minimumLineCoverage: '80'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Gate 3: Análisis Estático y SonarQube Quality Gate') {
+            steps {
+                echo '🔍 Ejecutando análisis estático y evaluando Quality Gate de SonarQube...'
+                script {
+                    withSonarQubeEnv('SonarQube-Local') {
+                        if (fileExists('services/access-service/pom.xml')) {
+                            dir('services/access-service') {
+                                sh './mvnw sonar:sonar -Dsonar.projectKey=${PROJECT_KEY} -Dsonar.qualitygate.wait=true'
+                            }
+                        } else {
+                            // Ejecutar scanner general del monorepo
+                            sh 'node infra/sonar/run-scanner.mjs'
+                        }
+                    }
+                    timeout(time: 3, unit: 'MINUTES') {
+                        def qg = waitForQualityGate()
+                        if (qg.status != 'OK') {
+                            error "⛔ Pipeline bloqueado: SonarQube Quality Gate en estado ${qg.status} (viola ADR-007)"
+                        }
+                        echo "✅ SonarQube Quality Gate superado con éxito (${qg.status})"
+                    }
+                }
+            }
+        }
+
+        stage('Gate 4: Empaquetado Seguro de Contenedor Docker') {
+            steps {
+                script {
+                    if (fileExists('services/access-service/Dockerfile')) {
+                        echo '🐳 Construyendo imagen inmutable multi-etapa con usuario no privilegiado (USER appuser)...'
+                        sh """
+                            docker build \\
+                                -t ${CONTAINER_IMAGE}:${GIT_COMMIT.take(7)} \\
+                                -t ${CONTAINER_IMAGE}:latest \\
+                                -f services/access-service/Dockerfile services/access-service
+                        """
+                    } else {
+                        echo '🐳 [INFO] Dockerfile de backend previsto para Slice 2. Omitiendo empaquetado.'
+                    }
+                }
+            }
+        }
+
+        stage('Gate 5: Despliegue con Health Check Activo y Rollback') {
+            steps {
+                script {
+                    if (fileExists('services/access-service/Dockerfile') && fileExists('infra/docker-compose.yml')) {
+                        echo '🚀 Desplegando contenedor mediante script de orquestación con verificación de salud...'
+                        sh "./infra/scripts/deploy-with-rollback.sh access-service '${CONTAINER_IMAGE}:${GIT_COMMIT.take(7)}' '${HEALTH_ENDPOINT}'"
+                    } else {
+                        echo '🚀 [INFO] Infraestructura de microservicios en proceso de construcción (Slice 2). Etapa de despliegue omitida.'
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        failure {
+            echo '🚨 [ALERTA] Fallo detectado en el pipeline. Revisar logs del step correspondiente.'
+        }
+        success {
+            echo '🎉 Pipeline ejecutado con éxito. Registrando telemetría y métricas DORA...'
+            sh "./infra/scripts/grafana-annotate.sh '${GIT_COMMIT}' access-service"
+        }
+        always {
+            cleanWs deleteDirs: true, notFailBuild: true
+        }
+    }
+}

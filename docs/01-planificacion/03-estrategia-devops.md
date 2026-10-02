@@ -140,7 +140,7 @@ jobs:
         if: failure()
         run: |
           ssh deploy@${{ secrets.ORACLE_HOST }} \
-            "cd /opt/proyectohv && docker compose up -d --rollback-previous"
+            "cd /opt/proyectohv && ./infra/scripts/deploy-with-rollback.sh access-service \${PREVIOUS_IMAGE} https://api.<dominio>/health"
           # dispara evento access.deploy.rollback → alerta en Grafana
 
       - name: Anotar despliegue en Grafana
@@ -264,13 +264,15 @@ dashboard de Grafana.** Muy pocos candidatos tienen un DORA dashboard propio.
 
 ---
 
-## 4. Entornos
+## 4. Entornos y Ramas
 
-| Entorno | Dónde | Datos | Cuándo |
-|---|---|---|---|
-| **Local** | Docker Compose | Sintéticos | Desarrollo |
-| **Preview** | Netlify preview | Sintéticos | Cada PR |
-| **Producción** | Netlify + VM Oracle + Supabase | Reales | Merge a `main` |
+| Entorno | Rama Asociada | Dónde | Datos | Compuerta / Disparo |
+|---|---|---|---|---|
+| **Desarrollo (CI)** | `desarrollo` | Local / GitHub Actions | Sintéticos | **PR aprobado dispara SonarQube** (cobertura ≥75%, 0 smells). |
+| **Homologación / QA** | `pruebas` | Netlify Preview / Docker efímero | Sintéticos / Sanitizados | PR aprobado desde `desarrollo` + suite E2E (Playwright) completa. |
+| **Producción** | `main` | Netlify + VM Oracle + Supabase | Reales | PR aprobado por Harold desde `pruebas` → Despliegue CD + Health check. |
+
+> 📌 **Modelo de 3 Ramas y Aprobaciones:** Formalizado en [`ADR-007`](../02-diseno/adr/ADR-007-estrategia-ramas-aprobacion-sonar.md) y [`docs/02-diseno/09-estrategia-ramas-flujo-trabajo.md`](../02-diseno/09-estrategia-ramas-flujo-trabajo.md). El push directo está bloqueado en las tres ramas.
 
 ⚠️ **Supabase free permite 2 proyectos activos** y **pausa a los 7 días sin
 actividad**. Por eso las migraciones se validan contra un Postgres efímero en
