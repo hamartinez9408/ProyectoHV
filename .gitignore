@@ -8,6 +8,12 @@
 .env.*
 !.env.example
 *.token
+# Config de Jenkins como codigo: lleva la contrasena del admin en texto plano.
+# No debe publicarse (AGENTS.md: "Sin secretos en el repo, jamas").
+# ARREGLO CORRECTO, pendiente: externalizar la contrasena a una variable de
+# entorno y volver a versionar el archivo. La contencion de abajo solo evita
+# la publicacion; no resuelve el fondo.
+infra/jenkins/jenkins.yaml
 *.pem
 *.key
 credentials.json
@@ -104,3 +110,6 @@ Thumbs.db
 .idea/
 .vscode/settings.json
 *.log
+
+# ── SonarQube Local ───────────────────────────────────────────
+.scannerwork/

@@ -245,6 +245,73 @@ try {
 } catch (e) { ymlDetail = e.message }
 check('Capa 4 (workflow de CI) sana', ymlOk, ymlDetail)
 
+// ── 11. Sincronía de tsconfig (build vs sonar) ──────────────────────────────
+let tsconfigOk = true, tsconfigDetail = ''
+try {
+  const pBuild = join(ROOT, 'web', 'tsconfig.json')
+  const pSonar = join(ROOT, 'web', 'tsconfig.sonar.json')
+  if (existsSync(pBuild) && existsSync(pSonar)) {
+    const cBuild = JSON.parse(readFileSync(pBuild, 'utf8')).compilerOptions || {}
+    const cSonar = JSON.parse(readFileSync(pSonar, 'utf8')).compilerOptions || {}
+    const criticalKeys = [
+      'strict',
+      'target',
+      'lib',
+      'noUncheckedIndexedAccess',
+      'noImplicitOverride',
+      'noFallthroughCasesInSwitch',
+      'noUnusedLocals',
+      'noUnusedParameters'
+    ]
+    const diffs = []
+    for (const k of criticalKeys) {
+      if (JSON.stringify(cBuild[k]) !== JSON.stringify(cSonar[k])) {
+        diffs.push(`${k} (build=${JSON.stringify(cBuild[k])} vs sonar=${JSON.stringify(cSonar[k])})`)
+      }
+    }
+    if (diffs.length > 0) {
+      tsconfigOk = false
+      tsconfigDetail = `Divergencia detectada: ${diffs.join('; ')}`
+    } else {
+      tsconfigDetail = 'opciones estrictas sincronizadas (strict, target, lib, checks)'
+    }
+  } else {
+    tsconfigDetail = 'uno o ambos archivos tsconfig ausentes en web/'
+  }
+} catch (e) {
+  tsconfigOk = false
+  tsconfigDetail = `error validando tsconfig: ${e.message}`
+}
+check('Sincronía tsconfig (build vs sonar)', tsconfigOk, tsconfigDetail)
+
+// ── 12. Binding de SonarCloud en CI (D-4) ──────────────────────────────────
+let sonarBindingOk = false, sonarBindingDetail = ''
+try {
+  const wfPath = join(ROOT, '.github', 'workflows', 'sonar-pr-approval.yml')
+  if (existsSync(wfPath)) {
+    const wfContent = readFileSync(wfPath, 'utf8')
+    const hasOrg = /-Dsonar\.organization=.*hamartinez9408/.test(wfContent)
+    const hasCloudUrl = /sonarcloud\.io/.test(wfContent)
+    const hasProjectKey = /-Dsonar\.projectKey=.*hamartinez9408_ProyectoHV/.test(wfContent)
+
+    if (hasOrg && hasCloudUrl && hasProjectKey) {
+      sonarBindingOk = true
+      sonarBindingDetail = 'organización (hamartinez9408), host (sonarcloud.io) y projectKey configurados'
+    } else {
+      const missing = []
+      if (!hasOrg) missing.push('falta organización hamartinez9408')
+      if (!hasCloudUrl) missing.push('falta sonarcloud.io')
+      if (!hasProjectKey) missing.push('falta projectKey hamartinez9408_ProyectoHV')
+      sonarBindingDetail = `Incompleto: ${missing.join(', ')}`
+    }
+  } else {
+    sonarBindingDetail = 'workflow sonar-pr-approval.yml ausente'
+  }
+} catch (e) {
+  sonarBindingDetail = `error verificando binding: ${e.message}`
+}
+check('Binding SonarCloud en workflow de CI', sonarBindingOk, sonarBindingDetail)
+
 // ── Salida ──────────────────────────────────────────────────────────────────
 console.log('\n╔══════════════════════════════════════════════════════════════════╗')
 console.log('║  ProyectoHV — verificación de contexto                           ║')

@@ -151,12 +151,17 @@ const HOME_BODY = `
     </tr>
     <tr>
       <td><strong>03. Registro de Decisiones (ADR Log)</strong></td>
-      <td>Catálogo de ADRs (001 a 006) con alternativas descartadas y decisión humana obligatoria.</td>
+      <td>Catálogo de ADRs (001 a 008) con alternativas descartadas y decisión humana obligatoria.</td>
       <td><span style="color: green;"><strong>APROBADO</strong></span></td>
     </tr>
     <tr>
       <td><strong>04. Vistas de Arquitectura &amp; Diagramas de Integración</strong></td>
       <td>HLD, arquitectura lógica hexagonal, despliegue físico en OCI ARM, matriz de integración y flujo E2E de acceso efímero 48h.</td>
+      <td><span style="color: green;"><strong>APROBADO</strong></span></td>
+    </tr>
+    <tr>
+      <td><strong>05. Estrategia CI/CD &amp; Pipeline Enterprise</strong></td>
+      <td>Estrategia Multi-CI (GitHub Actions + Jenkinsfile Enterprise), 5 compuertas bloqueantes, JCasC y rollback &lt; 3 min.</td>
       <td><span style="color: green;"><strong>APROBADO</strong></span></td>
     </tr>
   </tbody>
@@ -351,6 +356,20 @@ const ADR_BODY = `
       <td>Manejo de Errores con ProblemDetail RFC 9457</td>
       <td>Estandarización de errores REST en formato RFC 9457 con <code>@RestControllerAdvice</code>.</td>
       <td>Mapas de error heterogéneos o códigos HTTP planos sin contexto.</td>
+      <td><span style="color: green;"><strong>APROBADO</strong></span></td>
+    </tr>
+    <tr>
+      <td><strong>ADR-007</strong></td>
+      <td>Modelo de Tres Ramas con PRs y SonarQube</td>
+      <td>3 ramas base protegidas (desarrollo, pruebas, main) con disparo de Sonar al aprobar PR.</td>
+      <td>Trunk-based directo en main / GitFlow tradicional sobrecargado.</td>
+      <td><span style="color: green;"><strong>APROBADO</strong></span></td>
+    </tr>
+    <tr>
+      <td><strong>ADR-008</strong></td>
+      <td>Estrategia Multi-CI con Jenkinsfile Enterprise</td>
+      <td>GitHub Actions en la nube + Jenkinsfile declarativo on-demand (JCasC) como exhibit enterprise.</td>
+      <td>Jenkins 24/7 saturando RAM de la VM / Solo GitHub Actions sin evidencia enterprise.</td>
       <td><span style="color: green;"><strong>APROBADO</strong></span></td>
     </tr>
   </tbody>
@@ -630,6 +649,198 @@ const DIAGRAMS_BODY = `
 </ul>
 `;
 
+const CICD_BODY = `
+<h2>05. Estrategia CI/CD y Pipeline Enterprise (GitHub Actions &amp; Jenkins)</h2>
+<p><strong>Fase:</strong> 2 · Diseño &amp; DevOps | <strong>Decisión Humana:</strong> Harold Augusto Rodríguez Martínez (Líder Técnico) | <strong>Relacionado:</strong> ADR-007, ADR-008</p>
+<hr/>
+
+<h3>1. Filosofía Arquitectónica: Modelo Multi-CI (Opción 2)</h3>
+<p>Para combinar la eficiencia de costos del mundo cloud-native con la profundidad técnica requerida en la gran empresa (banca, finanzas, telecomunicaciones), ProyectoHV adopta una <strong>Estrategia Multi-CI Desacoplada</strong>:</p>
+<ul>
+  <li><strong>GitHub Actions (Cloud Core):</strong> Motor de integración continua para pull requests y despliegues en producción. Se ejecuta en runners públicos con minutos ilimitados y costo <strong>USD 0.00</strong>, protegiendo los recursos de la máquina virtual.</li>
+  <li><strong>Jenkins Enterprise (Exhibit &amp; JCasC On-Demand):</strong> Pipeline declarativo completo en Groovy (<code>pipelines/Jenkinsfile</code>) con provisión reproducible vía Docker (<code>infra/jenkins/</code>) y <em>Jenkins Configuration as Code (JCasC)</em>. Permite demostrar y ejecutar localmente (<code>npm run jenkins:up</code>) o en entornos on-premise un ciclo de entrega con 5 compuertas bloqueantes y rollback automático.</li>
+</ul>
+
+<h3>2. Matriz de Motores de CI/CD</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Dimensión</th>
+      <th>GitHub Actions (Cloud)</th>
+      <th>Jenkins Controller (Enterprise Exhibit)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Propósito Principal</strong></td>
+      <td>Verificación continua de PRs, Guardrails y CD productivo.</td>
+      <td>Exhibit de pipeline empresarial, orquestación Groovy y JCasC.</td>
+    </tr>
+    <tr>
+      <td><strong>Ubicación de Ejecución</strong></td>
+      <td>Cloud Runners gestionados de GitHub (costo $0).</td>
+      <td>Local o VM Oracle (restringido a 2 GB RAM, ejecución on-demand).</td>
+    </tr>
+    <tr>
+      <td><strong>Configuración como Código</strong></td>
+      <td>YAML (.github/workflows).</td>
+      <td>Groovy (Jenkinsfile) + JCasC YAML (jenkins.yaml).</td>
+    </tr>
+    <tr>
+      <td><strong>Compuertas de Calidad</strong></td>
+      <td>Guardrails deterministas + SonarCloud (org: hamartinez9408, key: hamartinez9408_ProyectoHV).</td>
+      <td>withSonarQubeEnv() + waitForQualityGate() nativo (Sonar local: proyectohv).</td>
+    </tr>
+    <tr>
+      <td><strong>Resguardo de Recursos VM</strong></td>
+      <td>0 MB de RAM consumidos en OCI.</td>
+      <td>Previene consumo 24/7 en la VM (&lt; USD 3/mes garantizado).</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr/>
+
+<h3>3. Las 5 Compuertas Bloqueantes del Pipeline Enterprise (Jenkinsfile)</h3>
+<p>El pipeline declarativo de Jenkins implementa el principio: <em>"Las compuertas bloquean, no informan"</em>:</p>
+<ol>
+  <li><strong>Gate 0: Guardrails Deterministas de Confidencialidad:</strong> Audita todo el árbol de archivos con <code>run-guardrails.mjs --all</code> garantizando el cumplimiento de la Regla #0 (cero PII y cero clientes corporativos).</li>
+  <li><strong>Gate 1: Compilación Paralela y Tipado:</strong> Compila microservicios Java 21 con Maven y verifica tipos TypeScript estrictos en Next.js (0 <code>any</code>).</li>
+  <li><strong>Gate 2: Pruebas Unitarias e Integración Efímera:</strong> Ejecuta suites JUnit 5 + Mockito y levanta contenedores Postgres desechables mediante Testcontainers. Valida cobertura mínima de líneas del 80% (JaCoCo).</li>
+  <li><strong>Gate 3: Análisis Estático y SonarQube Quality Gate:</strong> Escaneo con SonarScanner y bloqueo condicionado a <code>waitForQualityGate()</code> (0 bugs, 0 vulnerabilidades, 0 code smells críticos, duplicación &lt; 3%).</li>
+  <li><strong>Gate 4: Empaquetado Seguro de Contenedor:</strong> Construcción multi-etapa en Docker con usuario no privilegiado (<code>USER appuser</code>) y etiquetado inmutable por SHA del commit.</li>
+  <li><strong>Gate 5: Despliegue con Health Check Activo y Rollback Automático:</strong> Despliega vía Docker Compose y ejecuta 12 sondeos activos de salud HTTP (1 cada 5s). Si falla en 60s, el bloque <code>post { failure { ... } }</code> ejecuta la reversión inmediata al contenedor anterior (<strong>rollback &lt; 3 minutos</strong>).</li>
+</ol>
+
+<hr/>
+
+<h3>4. Definición del Pipeline Declarativo (Groovy)</h3>
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">groovy</ac:parameter>
+  <ac:plain-text-body><![CDATA[pipeline {
+    agent any
+
+    options {
+        timeout(time: 20, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '15'))
+        disableConcurrentBuilds()
+    }
+
+    environment {
+        PROJECT_KEY     = 'proyectohv'
+        CONTAINER_IMAGE = 'ghcr.io/hamartinez9408/access-service'
+        HEALTH_ENDPOINT = 'http://localhost:8081/actuator/health'
+    }
+
+    stages {
+        stage('Gate 0: Guardrails de Confidencialidad') {
+            steps {
+                sh 'node .agents/skills/hv-guardrails/scripts/run-guardrails.mjs --all'
+            }
+        }
+
+        stage('Gate 1: Compilación y Tipado') {
+            parallel {
+                stage('Java 21 Microservicios') {
+                    steps { dir('services/access-service') { sh './mvnw clean compile -B -DskipTests' } }
+                }
+                stage('TypeScript Next.js') {
+                    steps { dir('web') { sh 'npm ci && npx tsc --noEmit' } }
+                }
+            }
+        }
+
+        stage('Gate 2: Pruebas Unitarias y Testcontainers') {
+            steps {
+                dir('services/access-service') { sh './mvnw verify -B' }
+            }
+            post {
+                always {
+                    junit 'services/**/target/surefire-reports/*.xml'
+                    jacoco execPattern: '**/target/jacoco.exec', minimumLineCoverage: '80'
+                }
+            }
+        }
+
+        stage('Gate 3: SonarQube Quality Gate') {
+            steps {
+                withSonarQubeEnv('SonarQube-Local') {
+                    dir('services/access-service') {
+                        sh './mvnw sonar:sonar -Dsonar.projectKey=\${PROJECT_KEY} -Dsonar.qualitygate.wait=true'
+                    }
+                }
+                timeout(time: 3, unit: 'MINUTES') {
+                    script {
+                        def qg = waitForQualityGate()
+                        if (qg.status != 'OK') {
+                            error "⛔ Pipeline bloqueado: SonarQube Quality Gate en estado \${qg.status}"
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Gate 4: Empaquetado Seguro Docker') {
+            steps {
+                sh 'docker build -t \${CONTAINER_IMAGE}:\${GIT_COMMIT.take(7)} -f services/access-service/Dockerfile services/access-service'
+            }
+        }
+
+        stage('Gate 5: Despliegue con Health Check Activo y Rollback') {
+            steps {
+                sh "./infra/scripts/deploy-with-rollback.sh access-service '\${CONTAINER_IMAGE}:\${GIT_COMMIT.take(7)}' '\${HEALTH_ENDPOINT}'"
+            }
+        }
+    }
+
+    post {
+        failure {
+            echo "🚨 [ALERTA] Despliegue fallido o Quality Gate violado. Revisar logs del pipeline."
+        }
+        success {
+            echo "🎉 Despliegue exitoso. Notificando observabilidad y métricas DORA..."
+            sh "./infra/scripts/grafana-annotate.sh '\${GIT_COMMIT}' access-service"
+        }
+    }
+}]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<hr/>
+
+<h3>5. Infraestructura Reproducible: Jenkins Configuration as Code (JCasC)</h3>
+<p>Para evitar tareas manuales de configuración en interfaces gráficas, el entorno se gestiona íntegramente como código en <code>infra/jenkins/</code>:</p>
+<ul>
+  <li><code>Dockerfile</code>: Basado en <code>jenkins/jenkins:lts-jdk21</code>, con plugins preinstalados (workflow-aggregator, git, sonar, jacoco, junit, configuration-as-code).</li>
+  <li><code>jenkins.yaml</code>: Archivo JCasC que aprovisiona el controller, credenciales, la integración con SonarQube y el job pre-sembrado que rastrea la rama <code>desarrollo</code>.</li>
+  <li><code>docker-compose.yml</code>: Configura límites estrictos de hardware (2 GB RAM, 1.5 OCPU) para garantizar contención de recursos.</li>
+</ul>
+
+<h3>6. Comandos de Operación Local</h3>
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">bash</ac:parameter>
+  <ac:plain-text-body><![CDATA[# Iniciar el controlador Jenkins local con JCasC
+npm run jenkins:up
+
+# Verificar disponibilidad del servicio (HTTP 8088)
+npm run jenkins:status
+
+# Ver logs de ejecución en tiempo real
+npm run jenkins:logs
+
+# Detener el entorno de Jenkins
+npm run jenkins:down]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<hr/>
+
+<h3>7. ✍️ Registro de Decisión Humana (Gobernanza)</h3>
+<ul>
+  <li><strong>Decisión Humana:</strong> Aprobación de la Estrategia Multi-CI (Opción 2) combinando GitHub Actions y Jenkinsfile Enterprise como exhibit técnico.</li>
+  <li><strong>Líder Técnico / Autor:</strong> Harold Augusto Rodríguez Martínez.</li>
+  <li><strong>Fecha de Aprobación:</strong> 2026-10-02.</li>
+</ul>
+`;
+
 async function main() {
   console.log('🚀 Iniciando publicación en Confluence Cloud...');
   console.log(`   Sitio: ${siteUrl}`);
@@ -646,7 +857,7 @@ async function main() {
   console.log(`   Espacio HV encontrado (ID: ${spaceId}, Homepage ID: ${homepageId})`);
 
   // 2. Actualizar Homepage
-  console.log('\n[1/5] Actualizando Homepage del espacio HV...');
+  console.log('\n[1/6] Actualizando Homepage del espacio HV...');
   const homeData = await request(`/pages/${homepageId}`);
   await updatePage(
     homepageId,
@@ -657,17 +868,20 @@ async function main() {
   console.log('   ✅ Homepage actualizada con éxito.');
 
   // 3. Crear o actualizar páginas hijas
-  console.log('\n[2/5] Sincronizando Fase 1: Planificación & Costos...');
+  console.log('\n[2/6] Sincronizando Fase 1: Planificación & Costos...');
   await upsertPage(spaceId, homepageId, '01. Planificación & Modelo de Costos', PLAN_BODY);
 
-  console.log('\n[3/5] Sincronizando Fase 2: Arquitectura & Diseño...');
+  console.log('\n[3/6] Sincronizando Fase 2: Arquitectura & Diseño...');
   await upsertPage(spaceId, homepageId, '02. Arquitectura & Diseño del Sistema', DESIGN_BODY);
 
-  console.log('\n[4/5] Sincronizando Registro de ADRs...');
+  console.log('\n[4/6] Sincronizando Registro de ADRs...');
   await upsertPage(spaceId, homepageId, '03. Registro de Decisiones de Arquitectura (ADR Log)', ADR_BODY);
 
-  console.log('\n[5/5] Sincronizando Vistas y Diagramas de Arquitectura...');
+  console.log('\n[5/6] Sincronizando Vistas y Diagramas de Arquitectura...');
   await upsertPage(spaceId, homepageId, '04. Vistas de Arquitectura & Diagramas de Integración', DIAGRAMS_BODY);
+
+  console.log('\n[6/6] Sincronizando Estrategia CI/CD & Jenkins Enterprise...');
+  await upsertPage(spaceId, homepageId, '05. Estrategia CI/CD y Pipeline Enterprise (GitHub Actions & Jenkins)', CICD_BODY);
 
   console.log('\n✨ ¡Publicación en Confluence completada con éxito!');
   console.log(`   🔗 Accede a tu espacio en: ${siteUrl}/wiki/spaces/HV`);

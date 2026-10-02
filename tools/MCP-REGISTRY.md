@@ -142,7 +142,8 @@ de agente. Ya no depende de que alguien recuerde la regla.
 | `playwright` | E2E, pruebas de UI, verificación visual | 4 |
 | `magicuidesign` | Componentes de UI | 2 |
 | `netlify` | Despliegue del frontend | 5 |
-| `docker` *(deshabilitado)* | Contenedores, despliegue, tests de integración | 3, 5 |
+| `docker` | Contenedores, compose stacks, despliegue, tests de integración (`@hypnosis/docker-mcp-server`) | 3, 5 |
+| `hv-sonar` | Inspección de calidad estática, code smells y Quality Gate local (`sonarsource/sonarqube-mcp`) | 3, 4 |
 
 ### Por qué `.zcode/config.json` declara `mcp.servers` vacío
 

@@ -81,6 +81,28 @@
           "howToGet": "sentry.io/settings/auth-tokens/"
         }
       ]
+    },
+    "hv-sonar": {
+      "required": false,
+      "phases": [3, 4],
+      "why": "Inspeccion de calidad estatica de codigo, code smells y Quality Gate local",
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm", "--init",
+        "-e", "SONARQUBE_TOKEN",
+        "-e", "SONARQUBE_URL",
+        "sonarsource/sonarqube-mcp"
+      ],
+      "env": {
+        "SONARQUBE_TOKEN": "${SONARQUBE_TOKEN}",
+        "SONARQUBE_URL": "http://host.docker.internal:9000"
+      },
+      "secrets": [
+        {
+          "var": "SONARQUBE_TOKEN",
+          "howToGet": "Generado en SonarQube local o en infra/sonar/.sonar.token"
+        }
+      ]
     }
   },
   "expectedNeutral": {

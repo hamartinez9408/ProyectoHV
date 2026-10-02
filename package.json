@@ -19,7 +19,18 @@
     "verify:mcp:probe": "node tools/verify-mcp.mjs --probe",
     "publish:confluence": "node tools/publish-confluence.mjs",
     "build:content": "node .agents/skills/hv-career-pipeline/scripts/build-career-data.mjs",
-    "build:content:dry": "node .agents/skills/hv-career-pipeline/scripts/build-career-data.mjs --dry-run"
+    "build:content:dry": "node .agents/skills/hv-career-pipeline/scripts/build-career-data.mjs --dry-run",
+    "sonar:up": "docker compose -f infra/sonar/docker-compose.yml up -d",
+    "sonar:down": "docker compose -f infra/sonar/docker-compose.yml down",
+    "sonar:logs": "docker compose -f infra/sonar/docker-compose.yml logs -f",
+    "sonar:status": "node infra/sonar/check-status.mjs",
+    "sonar:rules": "node infra/sonar/configure-quality-profiles.mjs",
+    "sonar:scan": "node infra/sonar/run-scanner.mjs",
+    "jenkins:up": "docker compose -f infra/jenkins/docker-compose.yml up -d",
+    "jenkins:down": "docker compose -f infra/jenkins/docker-compose.yml down",
+    "jenkins:logs": "docker compose -f infra/jenkins/docker-compose.yml logs -f",
+    "jenkins:status": "node infra/jenkins/check-status.mjs",
+    "sonar:gate": "node pipelines/checks/sonar-gate.mjs"
   },
   "repository": {
     "type": "git",
