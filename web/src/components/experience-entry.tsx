@@ -1,6 +1,7 @@
 import { Emphasized } from '@/components/emphasized'
 import { MetricList } from '@/components/metric-card'
-import { formatRange, type Experience } from '@/lib/content'
+import type { Experience } from '@/models/career'
+import { formatRange } from '@/utils/format'
 
 /** Una entrada de trayectoria. `detailed` añade los logros y las cifras — la
  *  portada los omite para no repetir lo que ya muestra la sección de métricas. */

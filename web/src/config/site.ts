@@ -1,5 +1,7 @@
-// Rutas y textos de navegación. Constantes `as const`: nunca strings mágicos
-// sueltos por los componentes.
+// Configuración del sitio: rutas y textos de navegación.
+//
+// RESPONSABILIDAD ÚNICA (guía §5, capa `config/`): valores inmutables de
+// configuración. Constantes `as const` (guía §4.1): nunca strings mágicos.
 
 export const ROUTES = {
   HOME: '/',
@@ -12,7 +14,7 @@ export type Route = (typeof ROUTES)[keyof typeof ROUTES]
 
 // Solo rutas que EXISTEN. La navegación apunta a páginas construidas: un enlace
 // a una ruta inexistente devuelve 404 y Next lo prefetchea, así que el fallo se
-// ve en la consola del visitante. `EXHIBIT` entra aquí cuando exista la página
+// ve en la consola del visitante. `EXHIBIT` entra aquí cuando exista su página
 // (Slice 1.3), no antes.
 export const NAV_ITEMS = [
   { href: ROUTES.HOME, label: 'Inicio' },
@@ -28,7 +30,7 @@ export const SITE = {
   LANG: 'es',
 } as const
 
-/** Cuántos logros cuantificados destacar en la portada. */
+/** Cuántos elementos destacar en la portada. */
 export const LIMIT = {
   FEATURED_METRICS: 4,
   SKILL_GROUPS: 4,

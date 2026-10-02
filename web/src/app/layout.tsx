@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { NAV_ITEMS, ROUTES, SITE } from '@/lib/constants'
+import { NAV_ITEMS, ROUTES, SITE } from '@/config/site'
 import './globals.css'
 
 export const metadata: Metadata = {

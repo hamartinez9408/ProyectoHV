@@ -1,4 +1,4 @@
-import type { Metric } from '@/lib/content'
+import type { Metric } from '@/models/career'
 
 export function MetricCard({ metric }: { readonly metric: Metric }) {
   return (

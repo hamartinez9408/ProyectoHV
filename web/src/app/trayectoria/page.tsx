@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
-import { Section } from '@/components/section'
+import { DataStateView, dataOrEmpty } from '@/components/data-state'
 import { ExperienceEntry } from '@/components/experience-entry'
-import { content } from '@/lib/content'
+import { Section } from '@/components/section'
+import { careerContent } from '@/repositories/career.repository'
 
 export const metadata: Metadata = {
   title: 'Trayectoria',
@@ -10,8 +11,6 @@ export const metadata: Metadata = {
 }
 
 export default function TrajectoryPage() {
-  const { experiences } = content
-
   return (
     <>
       <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Trayectoria</h1>
@@ -20,21 +19,24 @@ export default function TrajectoryPage() {
         publican. Las cifras provienen del registro de carrera.
       </p>
 
-      <Section
-        id="experiencia"
-        title="Experiencia profesional"
-        isEmpty={experiences.length === 0}
-        emptyMessage="Aún no hay trayectoria publicada."
-      >
-        <ol className="space-y-12">
-          {experiences.map((experience) => (
-            <ExperienceEntry
-              key={`${experience.roleTitle}-${experience.startDate}`}
-              experience={experience}
-              detailed
-            />
-          ))}
-        </ol>
+      <Section id="experiencia" title="Experiencia profesional">
+        <DataStateView
+          state={dataOrEmpty(careerContent.experiences)}
+          emptyMessage="Aún no hay trayectoria publicada."
+          loadingLabel="Cargando trayectoria…"
+        >
+          {(items) => (
+            <ol className="space-y-12">
+              {items.map((experience) => (
+                <ExperienceEntry
+                  key={`${experience.roleTitle}-${experience.startDate}`}
+                  experience={experience}
+                  detailed
+                />
+              ))}
+            </ol>
+          )}
+        </DataStateView>
       </Section>
     </>
   )
