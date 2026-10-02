@@ -25,8 +25,9 @@
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
+import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { scanForbidden, loadProhibitedClients } from '../../../scripts/hv-rules.mjs'
+import { scanForbidden, loadProhibitedClients, prohibitedPattern, unmappedClients } from '../../../scripts/hv-rules.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 // scripts -> hv-career-pipeline -> skills -> .agents -> raíz del proyecto
@@ -96,11 +97,17 @@ function loadSectorMap() {
 }
 
 /** Sustituye cada alias por su etiqueta pública. El más largo gana, para que
- *  "Banco X S.A." no se sustituya a medias por una regla más corta. */
+ *  "Banco X S.A." no se sustituya a medias por una regla más corta.
+ *
+ *  Usa `prohibitedPattern` del motor de reglas — NO un `\b…\b` propio. Tener un
+ *  patrón aquí y otro allá fue la causa de la fuga del 2026-10-02: el
+ *  anonimizador no sustituía un nombre terminado en acento —`\b` no casa tras
+ *  una "á"— y el detector, con el mismo defecto, tampoco lo veía. Anonimizador
+ *  y detector DEBEN compartir la definición de frontera. */
 function makeAnonymizer(entries) {
   const sorted = [...entries].sort((a, b) => b.alias.length - a.alias.length)
   const rules = sorted.map((e) => ({
-    re: new RegExp(`\\b${e.alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi'),
+    re: prohibitedPattern(e.alias, 'giu'),
     publicLabel: e.publicLabel,
   }))
   let hits = 0
@@ -231,7 +238,7 @@ function parseExperiences(lines, anon) {
   const out = []
   const unmapped = []
   for (const sub of splitSubsections(lines)) {
-    // `### 3.1 Líder Técnico Pleno — Stefanini Colombia S.A.S. — Bogotá D.C.`
+    // `### 3.1 Líder Técnico Pleno — Stefanini — Bogotá D.C.`
     const head = /^\d+(?:\.\d+)?\s+(.*)$/.exec(sub.title.trim())
     let roleTitle, companyReal, city, range = null
 
@@ -336,6 +343,25 @@ if (!existsSync(SOURCE)) die(`No existe la fuente de verdad:\n  ${SOURCE}`)
 const sectorEntries = loadSectorMap()
 ok(`Mapa de anonimización: ${sectorEntries.length} alias en ${new Set(sectorEntries.map((e) => e.publicLabel)).size} sectores`)
 
+// ── Invariante: el mapa debe cubrir TODA la lista negra ─────────────────────
+// Un cliente prohibido sin regla en el mapa no se sustituye: viaja íntegro a
+// la salida pública. Así se escapó un nombre el 2026-10-02 —la lista tenía el
+// valor con tilde y el mapa lo tenía sin tilde, y nadie cotejaba ambos lados.
+//
+// Se comprueba AQUÍ, al inicio, y no al final: fallar antes de construir nada
+// es más barato y deja claro que el problema son los datos, no el código.
+const sinRegla = unmappedClients(sectorEntries)
+if (sinRegla.length) {
+  console.error('\n⛔ EL MAPA DE ANONIMIZACIÓN NO CUBRE LA LISTA DE CLIENTES PROHIBIDOS')
+  for (const label of sinRegla) console.error(`   · ${label} no tiene regla en el mapa`)
+  console.error('\n   Sin regla, el anonimizador no lo sustituye y el nombre viaja')
+  console.error('   íntegro al JSON público. No se escribió nada.')
+  console.error('   Añade una línea al mapa:  nombre-real = descripcion-publica | sector')
+  console.error('   (El valor no se imprime a propósito: repetirlo sería la misma fuga.)\n')
+  process.exit(1)
+}
+ok(`Cobertura: los ${loadProhibitedClients().length} clientes prohibidos tienen regla en el mapa`)
+
 const anon = makeAnonymizer(sectorEntries)
 const sections = splitSections(readFileSync(SOURCE, 'utf8'))
 const byKind = Object.fromEntries(sections.map((s) => [s.kind, s]))
@@ -403,7 +429,7 @@ ok(`Salida sin coincidencias en las listas privadas (${loadProhibitedClients().l
 // Autocomprobación: los nombres reales de empresa NO deben aparecer en el JSON público
 const fugas = sectorEntries
   .map((e) => e.alias)
-  .filter((alias) => new RegExp(`\\b${alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(serialized))
+  .filter((alias) => prohibitedPattern(alias).test(serialized))
 if (fugas.length) {
   console.error(`⛔ ${fugas.length} alias del mapa siguen presentes en la salida pública.`)
   process.exit(1)
@@ -442,6 +468,27 @@ const privateData = {
 }
 writeFileSync(OUT_PRIVATE, JSON.stringify(privateData, null, 2) + '\n', 'utf8')
 ok(`Escrito ${OUT_PRIVATE.replace(ROOT, '.')}  (gitignored)`)
+
+// ── Refrescar la copia que consume web/ ─────────────────────────────────────
+// `web/` construye con su propia raíz (y en Netlify el base dir es `web/`), así
+// que lee una copia dentro de su árbol — gitignored y producida por
+// `web/scripts/sync-content.mjs`.
+//
+// Se INVOCA ese script en vez de escribir la copia aquí: dos escritores del
+// mismo archivo es la misma clase de defecto que la fuga del 2026-10-02 (dos
+// listas, dos copias, dos definiciones de frontera). Un solo escritor.
+//
+// Sin esto, regenerar dejaba la copia vieja en disco: `content/public.json`
+// limpio y `web/src/content/public.json` con el nombre del cliente.
+try {
+  execFileSync(process.execPath, [join(ROOT, 'web', 'scripts', 'sync-content.mjs')], { stdio: 'pipe' })
+  ok('Copia de web/ refrescada (web/src/content/public.json)')
+} catch (e) {
+  console.error('\n⛔ El contenido público se generó, pero la copia de web/ falló:')
+  console.error(`   ${(e.stderr?.toString() || e.message).trim()}`)
+  console.error('   web/ serviría contenido viejo. No se da por bueno.\n')
+  process.exit(1)
+}
 
 console.log('\n' + '─'.repeat(64))
 console.log('Siguiente paso:')

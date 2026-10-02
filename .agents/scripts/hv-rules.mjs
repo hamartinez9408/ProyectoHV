@@ -39,24 +39,142 @@ const EXEMPT_FROM_IDENTIFIER_CHECK = ['.agents/rules/private/']
 
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
+// ── Fronteras de palabra que SÍ funcionan con acentos ───────────────────────
+// `\b` de JavaScript se apoya en `\w`, que es [A-Za-z0-9_]. Un carácter
+// acentuado NO es de palabra, así que si el valor TERMINA en vocal acentuada
+// o en "ñ" —lo habitual en nombres propios en español— el patrón `\b<valor>\b`
+// NUNCA casa: no existe frontera de palabra tras esa letra.
+//
+// Consecuencia real, detectada el 2026-10-02: un nombre de cliente terminado en
+// vocal acentuada viajó íntegro a content/public.json —el anonimizador usaba
+// `\b` y tampoco lo sustituyó— y ningún guarda lo detectó. El motor era ciego
+// justo a los valores con acentos, que en español son la mayoría.
+//
+// Nota sobre este mismo comentario: la versión anterior de este archivo
+// ESCRIBÍA el nombre del cliente como ejemplo. Ningún guarda lo marcaba,
+// porque dentro de la notación `\b<valor>\b` el valor queda pegado a una letra
+// de palabra y la frontera no aplica. Es decir: el archivo que existe para
+// impedir que un nombre se publique lo tenía escrito. Por eso el ejemplo de
+// arriba describe el caso en vez de nombrarlo.
+const BORDE_IZQ = '(?<![\\p{L}\\p{N}_])'
+const BORDE_DER = '(?![\\p{L}\\p{N}_])'
+
+// ── Tolerancia a tildes ─────────────────────────────────────────────────────
+// Segundo defecto de la misma fuga: el mapa de anonimización escribía un alias
+// SIN tilde y el perfil lo tenía CON tilde. Aunque las fronteras hubieran sido
+// correctas, el alias no habría casado nunca.
+//
+// Por eso la comparación es insensible a diacríticos en AMBAS direcciones:
+// cada letra del valor casa con sus variantes acentuadas, y cada letra
+// acentuada casa con su forma base. Un typo de tilde —en el mapa o en el
+// perfil— deja de ser una vía de fuga.
+const GRUPO_DIACRITICO = {
+  a: 'aáàäâã', e: 'eéèëê', i: 'iíìïî', o: 'oóòöôõ', u: 'uúùüû', n: 'nñ', c: 'cç',
+  A: 'AÁÀÄÂÃ', E: 'EÉÈËÊ', I: 'IÍÌÏÎ', O: 'OÓÒÖÔÕ', U: 'UÚÙÜÛ', N: 'NÑ', C: 'CÇ',
+}
+
+/** Forma base de cada letra acentuada (el inverso del mapa de grupos). */
+const BASE_DIACRITICA = (() => {
+  const m = {}
+  for (const [base, grupo] of Object.entries(GRUPO_DIACRITICO)) {
+    for (const ch of grupo) if (ch !== base) m[ch] = base
+  }
+  return m
+})()
+
+/** Clase de caracteres que casa una letra con todas sus variantes acentuadas.
+ *  El sesgo es deliberado: marcar de MÁS es seguro (bloquea de más); marcar de
+ *  menos es la fuga. Un guarda de confidencialidad debe fallar hacia bloquear. */
+function claseDiacritica(ch) {
+  const base = BASE_DIACRITICA[ch] || ch
+  const grupo = GRUPO_DIACRITICO[base]
+  return grupo ? `[${grupo}]` : escapeRe(ch)
+}
+
+/** Cuerpo del patrón: cada letra del valor con sus variantes acentuadas, SIN
+ *  fronteras de palabra.
+ *
+ *  Existe para el depurador de historial (`tools/hv-scrub-tree.mjs`), que
+ *  necesita MÁXIMA recall: antes de publicar, un valor es fuga aunque aparezca
+ *  pegado a letras —por ejemplo escrito dentro de la notación `\bValor\b` en
+ *  un comentario—. Con fronteras ese caso se escapaba, y de hecho se escapó.
+ *
+ *  Para DETECTAR en el árbol de trabajo se usa `prohibitedPattern` (con
+ *  fronteras): ahí sobrerrepresentar es solo ruido. Para DEPURAR historial se
+ *  usa esto: ahí subrepresentar es publicar un nombre. Ambos comparten la
+ *  misma tabla de diacríticos, que es lo único que no debe duplicarse. */
+export function diacriticSource(value) {
+  return [...String(value)].map(claseDiacritica).join('')
+}
+
+/** Patrón de coincidencia de un valor prohibido, con fronteras correctas y
+ *  tolerancia a tildes.
+ *  @param flags por defecto 'iu'. El anonimizador del pipeline pide 'giu' para
+ *  sustituir TODAS las apariciones — y así ambos usan la MISMA definición de
+ *  frontera. Que divergieran fue la causa de la fuga del 2026-10-02. */
+export function prohibitedPattern(value, flags = 'iu') {
+  return new RegExp(`${BORDE_IZQ}${diacriticSource(value)}${BORDE_DER}`, flags)
+}
+
 /**
  * Convierte texto crudo en patrones. Admite separación por salto de línea o coma
  * y descarta comentarios.
+ *
+ * El orden importa: los comentarios se descartan ANTES de trocear por comas.
+ * Trocear primero deja un fragmento sin `#` que sobrevive al filtro y entra a
+ * la lista negra como valor prohibido. Ocurrió de verdad (2026-10-02): un
+ * comentario del encabezado que contenía una coma producía un cliente #10
+ * inexistente de 28 caracteres, que ensuciaba el cotejo de cobertura y podía
+ * haber bloqueado un build legítimo por un falso positivo.
+ *
  * @param {string} raw
  * @param {string} labelPrefix  Etiqueta SIN el valor ofensor.
  */
 function parseList(raw, labelPrefix) {
   if (!raw) return []
   return raw
-    .split(/[\r\n,]+/)
+    .split(/\r?\n/)
     .map((line) => line.trim())
     .filter((line) => line && !line.startsWith('#'))
+    // Varios valores por línea, separados por coma.
+    .flatMap((line) => line.split(',').map((s) => s.trim()).filter(Boolean))
     .map((value, i) => ({
-      re: new RegExp(`\\b${escapeRe(value)}\\b`, 'i'),
-      // La etiqueta NO incluye el valor: repetirlo en un mensaje de error
-      // sería la misma fuga. Se identifica por índice.
+      re: prohibitedPattern(value),
+      // ⚠️ `value` existe SOLO para cotejos internos (p. ej. ¿está cubierto por
+      // el mapa de anonimización?). NUNCA imprimirlo: repetirlo en un mensaje
+      // de error sería la misma fuga. Para logs y mensajes, usar `label`.
+      value,
+      // La etiqueta NO incluye el valor: se identifica por índice.
       label: `${labelPrefix} #${i + 1}`,
     }))
+}
+
+/**
+ * Clientes prohibidos que NO tienen regla en el mapa de anonimización.
+ *
+ * Un cliente en la lista negra y ausente del mapa es una fuga en potencia:
+ * el anonimizador no lo sustituye, así que viaja íntegro a la salida pública.
+ * Así se escapó un nombre el 2026-10-02.
+ *
+ * El cotejo es insensible a tildes y mayúsculas, en ambos sentidos.
+ *
+ * @param {{alias: string}[]} sectorEntries  Entradas del mapa de anonimización.
+ * @returns {string[]} Etiquetas (`cliente corporativo #N`) sin regla, sin el valor.
+ */
+export function unmappedClients(sectorEntries) {
+  if (!Array.isArray(sectorEntries) || !sectorEntries.length) {
+    return loadProhibitedClients().map((c) => c.label)
+  }
+  const normalizar = (s) =>
+    String(s ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim()
+  const cubiertos = new Set(sectorEntries.map((e) => normalizar(e.alias)))
+  return loadProhibitedClients()
+    .filter((c) => !cubiertos.has(normalizar(c.value)))
+    .map((c) => c.label)
 }
 
 function readPrivate(envKey, filePath) {
