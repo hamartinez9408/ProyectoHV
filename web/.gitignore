@@ -1,0 +1,15 @@
+# Dependencias y artefactos de build
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Capturas y trazas de Playwright (verificación visual)
+.playwright-mcp/
+
+# Contenido DERIVADO — no es fuente.
+# La fuente es ../content/public.json, generada por el pipeline de carrera
+# (.agents/skills/hv-career-pipeline). Se sincroniza antes de cada dev/build.
+# Versionarla aquí crearía una segunda copia que puede divergir en silencio.
+src/content/public.json

@@ -92,6 +92,7 @@ backups/
 *.sql.gz
 
 # ── Artefactos de pruebas y cobertura ─────────────────────────
+.playwright-mcp/
 coverage/
 playwright-report/
 test-results/
