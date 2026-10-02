@@ -311,6 +311,9 @@ curl -s -X GET "https://<supabase-project>.supabase.co/rest/v1/experience_privat
 # RESULTADO ESPERADO: [] (0 filas devueltas; auth.jwt() es NULL -> acceso denegado; pendiente de certificar con Testcontainers/curl en Fase 3 y 4)
 
 # Intento de bypass 2: Atacante intenta falsificar un token JWT con firma HMAC alterada
+# NOTA: el valor de abajo es un MARCADOR, no una credencial real.
+#       Un token con pinta de real en un repositorio público es material
+#       de credencial aunque se haya fabricado para el ejemplo.
 curl -s -X GET "https://<supabase-project>.supabase.co/rest/v1/compensation_details" \
      -H "apikey: <anon-public-key>" \
      -H "Authorization: Bearer <jwt-falsificado-invalido>"
