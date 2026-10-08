@@ -109,11 +109,20 @@ try {
   casos.push(['escritura en ruta corporativa',
     () => eng.evaluate('Write', { filePath: 'C:/Stefanini/x.md', content: 'x' }).decision === 'block'])
 
+  const getFirstValue = (envVal, filePath) => {
+    const rawText = envVal?.trim() || (existsSync(filePath) ? readFileSync(filePath, 'utf8') : '')
+    if (!rawText) return ''
+    return rawText
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith('#'))
+      .flatMap((l) => l.split(',').map((s) => s.trim()).filter(Boolean))[0] || ''
+  }
+
   // Autotest con el VALOR REAL, leído de la lista privada (no hardcodeado)
   if (lists.identifiers) {
     const privFile = join(ROOT, '.agents', 'rules', 'private', 'prohibited-identifiers.txt')
-    const raw = (process.env.HV_PROHIBITED_IDENTIFIERS || '').split(',')[0].trim()
-      || (existsSync(privFile) ? readFileSync(privFile, 'utf8').split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith('#')) : '')
+    const raw = getFirstValue(process.env.HV_PROHIBITED_IDENTIFIERS, privFile)
     if (raw) {
       casos.push(['dato personal real bloqueado (evaluate)',
         () => eng.evaluate('Write', { filePath: 'content/public.json', content: `x ${raw}` }).decision === 'block'])
@@ -123,8 +132,7 @@ try {
   }
   if (lists.clients) {
     const privFile = join(ROOT, '.agents', 'rules', 'private', 'prohibited-clients.txt')
-    const raw = (process.env.HV_PROHIBITED_CLIENTS || '').split(',')[0].trim()
-      || (existsSync(privFile) ? readFileSync(privFile, 'utf8').split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith('#')) : '')
+    const raw = getFirstValue(process.env.HV_PROHIBITED_CLIENTS, privFile)
     if (raw) {
       casos.push(['cliente real bloqueado (evaluate)',
         () => eng.evaluate('Write', { filePath: 'content/public.json', content: `x ${raw}` }).decision === 'block'])
