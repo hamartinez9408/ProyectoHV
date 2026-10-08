@@ -72,6 +72,9 @@ jobs:
       # listas privadas. Las comprobaciones que dependen del entorno local
       # (MCPs, junction) se marcan "no aplica" cuando CI está definido.
       - name: Verificación de contexto
+        env:
+          HV_PROHIBITED_CLIENTS: ${{ secrets.HV_PROHIBITED_CLIENTS }}
+          HV_PROHIBITED_IDENTIFIERS: ${{ secrets.HV_PROHIBITED_IDENTIFIERS }}
         run: node tools/verify-context.mjs
 
   convencion-commits:

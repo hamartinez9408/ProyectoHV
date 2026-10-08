@@ -113,7 +113,7 @@ try {
   if (lists.identifiers) {
     const privFile = join(ROOT, '.agents', 'rules', 'private', 'prohibited-identifiers.txt')
     const raw = (process.env.HV_PROHIBITED_IDENTIFIERS || '').split(',')[0].trim()
-      || readFileSync(privFile, 'utf8').split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith('#'))
+      || (existsSync(privFile) ? readFileSync(privFile, 'utf8').split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith('#')) : '')
     if (raw) {
       casos.push(['dato personal real bloqueado (evaluate)',
         () => eng.evaluate('Write', { filePath: 'content/public.json', content: `x ${raw}` }).decision === 'block'])
@@ -124,7 +124,7 @@ try {
   if (lists.clients) {
     const privFile = join(ROOT, '.agents', 'rules', 'private', 'prohibited-clients.txt')
     const raw = (process.env.HV_PROHIBITED_CLIENTS || '').split(',')[0].trim()
-      || readFileSync(privFile, 'utf8').split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith('#'))
+      || (existsSync(privFile) ? readFileSync(privFile, 'utf8').split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith('#')) : '')
     if (raw) {
       casos.push(['cliente real bloqueado (evaluate)',
         () => eng.evaluate('Write', { filePath: 'content/public.json', content: `x ${raw}` }).decision === 'block'])
@@ -142,10 +142,12 @@ check('Motor de reglas operativo', engineOk, engineDetail)
 
 // ── 7. Listas privadas ──────────────────────────────────────────────────────
 const PRIV = join(ROOT, '.agents', 'rules', 'private')
-const listaId = existsSync(join(PRIV, 'prohibited-identifiers.txt'))
-const listaCl = existsSync(join(PRIV, 'prohibited-clients.txt'))
+const listaId = existsSync(join(PRIV, 'prohibited-identifiers.txt')) || Boolean(process.env.HV_PROHIBITED_IDENTIFIERS)
+const listaCl = existsSync(join(PRIV, 'prohibited-clients.txt')) || Boolean(process.env.HV_PROHIBITED_CLIENTS)
+const detailId = existsSync(join(PRIV, 'prohibited-identifiers.txt')) ? 'ok' : (process.env.HV_PROHIBITED_IDENTIFIERS ? 'secret' : 'AUSENTE')
+const detailCl = existsSync(join(PRIV, 'prohibited-clients.txt')) ? 'ok' : (process.env.HV_PROHIBITED_CLIENTS ? 'secret' : 'AUSENTE')
 check('Listas privadas presentes', listaId && listaCl,
-  `identificadores:${listaId ? 'ok' : 'AUSENTE'} clientes:${listaCl ? 'ok' : 'AUSENTE'}` +
+  `identificadores:${detailId} clientes:${detailCl}` +
   (listaId && listaCl ? '' : ' — sin ellas los guardas avisan pero no protegen'))
 
 // ── 8. .gitignore cubre la zona privada ─────────────────────────────────────
